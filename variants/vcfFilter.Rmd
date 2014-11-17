@@ -1,0 +1,75 @@
+---
+title: "vcfFilter"
+author: "Christian Parobek"
+date: "November 15, 2014"
+output: html_document
+---
+
+We want to set quality filters based on the distribution of actual scores observed in our set of SNP calls. This script should be run on a VCF that has been filtred for Neafsey's highly paralogous genes, and TRF intervals.
+
+First, read in the VCF file and load a library for the regular expressions I'll use:
+```{r, cache=TRUE}
+vcf <- read.table("combined.filtered.vcf", comment.char = "#")
+#vcf <- read.table("short.vcf", comment.char = "#")
+```
+
+```{r, echo=FALSE}
+# Let's do some housekeeping
+
+library("stringr", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.1")
+
+#par(mfrow=c(6,1))
+#par(mar=c(0,4,1,1)) # decrease space between graphs
+#par(oma=c(4,0,0,0)) # Make room for overall labels
+```
+
+
+There are `r length(vcf$V8)` variants in this file. Let's first take a quick peek at the distribution of allele frequencies:
+```{r, echo=FALSE}
+AF <- str_extract(vcf$V8, "AF=[0123456789.-]+")
+AFnum <- as.numeric(str_extract(AF, "[0123456789.-]+"))
+plot(sort(AFnum, decreasing=FALSE), xlab="", ylab="Allele Frequency (AF)")
+```
+
+####Now let's look at the distribution of scores for several quality measures:
+```{r, echo=FALSE}
+QD <- str_extract(vcf$V8, "QD=[0123456789.-]+")
+QDnum <- as.numeric(str_extract(QD, "[0123456789.-]+"))
+plot(sort(QDnum, decreasing=FALSE), xlab="", ylab="Quality by Depth (QD)")
+```
+
+_This is the variant confidence (from the `QUAL` field) divided by the unfiltered depth of non-reference samples. --GATK Documentation_
+
+```{r, echo=FALSE}
+FS <- str_extract(vcf$V8, "FS=[0123456789.-]+")
+FSnum <- as.numeric(str_extract(FS, "[0123456789.-]+"))
+plot(sort(FSnum, decreasing=FALSE), xlab="", ylab="Fisher Score (FS)")
+```
+
+_Phred-scaled p-value using Fisher’s Exact Test to detect strand bias (the variation being seen on only the forward or only the reverse strand) in the reads. More bias is indicative of false positive calls. --GATK Documentation_
+
+```{r, echo=FALSE}
+MQ <- str_extract(vcf$V8, "MQ=[0123456789.-]+")
+MQnum <- as.numeric(str_extract(MQ, "[0123456789.-]+"))
+plot(sort(MQnum, decreasing=FALSE), xlab="", ylab=" RMS Mapping Quality (MQ)")
+```
+
+_Root mean square mapping quality "provides an estimation of the overall mapping quality of reads supporting a variant call, averaged over all samples in a cohort. The root mean square is equivalent to the mean of the mapping qualities plus the standard deviation of the mapping qualities." --GATK Documentation_
+
+```{r, echo=FALSE}
+MQRankSum <- str_extract(vcf$V8, "MQRankSum=[0123456789.-]+")
+MQRankSumnum <- as.numeric(str_extract(MQRankSum, "[0123456789.-]+"))
+plot(sort(MQRankSumnum, decreasing=FALSE), xlab="", ylab="MQ Rank Sum")
+```
+
+_This is the u-based z-approximation from the Mann-Whitney Rank Sum Test for mapping qualities (reads with ref bases vs. those with the alternate allele). Note that the mapping quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles, i.e. this will only be applied to heterozygous calls. --GATK DOcumentation_
+
+```{r, echo=FALSE}
+ReadPosRankSum <- str_extract(vcf$V8, "ReadPosRankSum=[0123456789.-]+")
+ReadPosRankSumnum <- as.numeric(str_extract(ReadPosRankSum, "[0123456789.-]+"))
+plot(sort(ReadPosRankSumnum, decreasing=FALSE), xlab="", ylab="Read Position Rank Sum")
+
+```
+
+_This is the u-based z-approximation from the Mann-Whitney Rank Sum Test for the distance from the end of the read for reads with the alternate allele. If the alternate allele is only seen near the ends of reads, this is indicative of error. Note that the read position rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles, i.e. this will only be applied to heterozygous calls. --GATK Documentation_
+
