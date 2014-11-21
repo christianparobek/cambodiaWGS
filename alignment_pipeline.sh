@@ -32,7 +32,7 @@
 
 ref=/proj/julianog/refs/PvSAL1_v10.0/PlasmoDB-10.0_PvivaxSal1_Genome.fasta
 picard=/nas02/apps/picard-1.88/picard-tools-1.88
-
+gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
 
 #for name in `cat samplenames6.txt`
 #do
@@ -105,22 +105,40 @@ picard=/nas02/apps/picard-1.88/picard-tools-1.88
 #		# -v 2 is verbosity ... warnings and errors only
 
 ### SORT SAM FILE AND OUTPUT AS BAM
-#java -jar /nas02/apps/picard-1.88/picard-tools-1.88/SortSam.jar \
+#java -jar $picard/SortSam.jar \
 #	I=aln/$name.sam \
 #	O=aln/$name.sorted.bam \
 #	SO=coordinate
 
 ### MARK DUPLICATES
-#java -jar /nas02/apps/picard-1.88/picard-tools-1.88/MarkDuplicates.jar I=aln/$name.sorted.bam O=aln/$name.dedup.bam METRICS_FILE=aln/$name.dedup.metrics REMOVE_DUPLICATES=False
+#java -jar $picard/MarkDuplicates.jar \
+#	I=aln/$name.sorted.bam \
+#	O=aln/$name.dedup.bam \
+#	METRICS_FILE=aln/$name.dedup.metrics \
+#	REMOVE_DUPLICATES=False
 
 ### INDEX BAM FILE PRIOR TO REALIGNMENT
-#java -jar /nas02/apps/picard-1.88/picard-tools-1.88/BuildBamIndex.jar INPUT=aln/$name.dedup.bam
+#java -jar $picard/BuildBamIndex.jar \
+#	INPUT=aln/$name.dedup.bam
 
 ### IDENTIFY WHAT REGIONS NEED TO BE REALIGNED 
-#java -jar /nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar -T RealignerTargetCreator -R $ref -L gatk.intervals -I aln/$name.dedup.bam -o aln/$name.realigner.intervals -nt 4
+#java -jar $gatk \
+#	-T RealignerTargetCreator \
+#	-R $ref \
+#	-L gatk.intervals \
+#	-I aln/$name.dedup.bam \
+#	-o aln/$name.realigner.intervals \
+#	-nt 4
 
 ### PERFORM THE ACTUAL REALIGNMENT
-#java -jar /nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar -T IndelRealigner -R $ref -L gatk.intervals -I aln/$name.dedup.bam -targetIntervals aln/$name.realigner.intervals -o aln/$name.realn.bam
+#java -jar $gatk 
+#	-T IndelRealigner \
+#	-R $ref \
+#	-L gatk.intervals \
+#	-I aln/$name.dedup.bam \
+#	-targetIntervals \
+#	aln/$name.realigner.intervals \
+#	-o aln/$name.realn.bam
 
 #done
 
@@ -128,8 +146,8 @@ picard=/nas02/apps/picard-1.88/picard-tools-1.88
 ############################ VARIANT CALLING #############################
 ##########################################################################
 
-### MULTIPLE-SAMPLE VARIANT CALLING USING UNIFIED GENOTYPER (GATK'S CALLER OF CHOICE FOR NON-DIPLOID)
-#java -jar /nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar \
+### MULTIPLE-SAMPLE VARIANT CALLING (UG IS GATK'S CALLER FOR NON-DIPLOID)
+#java -jar $gatk \
 #	-T UnifiedGenotyper \
 #	-R $ref \
 #	-L gatk.intervals \
@@ -138,29 +156,49 @@ picard=/nas02/apps/picard-1.88/picard-tools-1.88
 #	-ploidy 1 \
 #	-nt 8
 
-## FILTER VCF BY REGION (NEAFSEY GENES, TANDEM REPEATS) AND BY QUALITY
-java -jar /nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar \
-	-T SelectVariants \
-	-R /proj/julianog/refs/PvSAL1_v10.0/PlasmoDB-10.0_PvivaxSal1_Genome.fasta \
+##########################################################################
+########################### VARIANT FILTERING ############################
+##########################################################################
+
+### FILTER BY DEPTH IN PERCENTAGE OF SAMPLES
+#java -Xmx2g -jar $gatk \
+#	-T CoveredByNSamplesSites \
+#	-R $ref \
+#	-V variants/combined.vcf \
+#	-out 10xAT80%.intervals \
+#	-minCov 10 \
+#	-percentage 0.80 \
+#		# Output interval file contains sites that passed
+
+## FILTER VCF BY NEAFSEY PARALOGS, TANDEM REPEAT REGIONS, AND SPECIFIC QUALITY SCORES
+java -jar $gatk \
+	-T VariantFiltration \
+	-R $ref \
+	-V variants/combined.vcf \
+	-L 10xAT80%.intervals \
 	-XL neafseyExclude.intervals \
 	-XL trfExclude.intervals \
-	-select "QUAL > 30.0" \
-	--variant variants/combined.vcf \
-	--out variants/combined.filtered.vcf
+	--filterExpression "QD < 5.0" \
+	--filterName "QD" \
+	--filterExpression "MQ < 60.0" \
+	--filterName "MQ" \
+	--filterExpression "FS > 10.0" \
+	--filterName "FS" \
+	--filterExpression "MQRankSum < -5.0" \
+	--filterName "MQRankSum" \
+	--filterExpression "ReadPosRankSum < -5.0" \
+	--filterName "ReadPosRankSum" \
+	--logging_level ERROR \
+	-o variants/combined.qual.vcf
+		# --logging_level ERROR suppresses any unwanted messages
 
-
-##########################################################################
-############################ FAST STRUCTURE ##############################
-##########################################################################
-
-## FIRST CONVERT VCF FORMAT TO BED
 
 ##########################################################################
 ############################## EXTRA TOOLS ###############################
 ##########################################################################
 
 ## CALCULATE COVERAGE
-#bedtools genomecov -ibam aln/$name.sorted.bam -max 10 | grep genome > $name.cov
+#bedtools genomecov -ibam aln/$name.realn.bam -max 10 | grep genome > coverage/$name.cov10
 
 ## GATK DEPTH OF COVERAGE CALCUALTOR
 #java -Xmx10g -jar /nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar \
