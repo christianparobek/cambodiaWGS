@@ -1,9 +1,8 @@
-### This is a Bowtie2 alignment pipeline
+### This is a BWA-MEM alignment pipeline
 ### Modified for Pv whole-genome sequencing
 ### Started August, 2014
 ### Features:
 ###	Paired-end alignments using BWA-MEM    
-###	Paired-end alignments using Bowtie2
 ###	Variant-calling using GATK
 
 
@@ -151,8 +150,8 @@ gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
 #	-T UnifiedGenotyper \
 #	-R $ref \
 #	-L gatk.intervals \
-#	-I bamnames.list \
-#	-o variants/combined.vcf \
+#	-I goodbamnames.list \
+#	-o variants/good69.vcf \
 #	-ploidy 1 \
 #	-nt 8
 
@@ -164,20 +163,22 @@ gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
 #java -Xmx2g -jar $gatk \
 #	-T CoveredByNSamplesSites \
 #	-R $ref \
-#	-V variants/combined.vcf \
-#	-out 10xAT80%.intervals \
-#	-minCov 10 \
-#	-percentage 0.80 \
+#	-V variants/good69.vcf \
+#	-out variants/05xAT100%.intervals \
+#	-minCov 05 \
+#	-percentage 0.99999
 #		# Output interval file contains sites that passed
+#		# Would be more elegant to use 1.0 instad of 0.99999, but that doesn't work
 
-## FILTER VCF BY NEAFSEY PARALOGS, TANDEM REPEAT REGIONS, AND SPECIFIC QUALITY SCORES
+## FILTER VCF BY NEAFSEY PARALOGS, TANDEM REPEATS, SUBTELOMERES, AND QUALITY SCORES
 java -jar $gatk \
 	-T VariantFiltration \
 	-R $ref \
-	-V variants/combined.vcf \
-	-L 10xAT80%.intervals \
+	-V variants/good69.vcf \
+	-L variants/05xAT100%.intervals \
 	-XL neafseyExclude.intervals \
 	-XL trfExclude.intervals \
+	-XL subtelomeres.intervals \
 	--filterExpression "QD < 5.0" \
 	--filterName "QD" \
 	--filterExpression "MQ < 60.0" \
@@ -189,9 +190,16 @@ java -jar $gatk \
 	--filterExpression "ReadPosRankSum < -5.0" \
 	--filterName "ReadPosRankSum" \
 	--logging_level ERROR \
-	-o variants/combined.qual.vcf
+	-o variants/good69.qual.vcf
 		# --logging_level ERROR suppresses any unwanted messages
 
+## SELECT ONLY THE RECORDS THAT PASSED ALL QUALITY FILTERS
+java -jar $gatk \
+	-T SelectVariants \
+	-R $ref \
+	-V variants/good69.qual.vcf \
+	-select 'vc.isNotFiltered()' \
+	-o variants/good69.pass.vcf
 
 ##########################################################################
 ############################## EXTRA TOOLS ###############################
@@ -200,7 +208,7 @@ java -jar $gatk \
 ## CALCULATE COVERAGE
 #bedtools genomecov -ibam aln/$name.realn.bam -max 10 | grep genome > coverage/$name.cov10
 
-## GATK DEPTH OF COVERAGE CALCUALTOR
+### GATK DEPTH OF COVERAGE CALCUALTOR
 #java -Xmx10g -jar /nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar \
 #	-T DepthOfCoverage \
 #	-R /proj/julianog/refs/PvSAL1_v10.0/PlasmoDB-10.0_PvivaxSal1_Genome.fasta \
