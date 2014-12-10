@@ -33,7 +33,7 @@ ref=/proj/julianog/refs/PvSAL1_v10.0/PlasmoDB-10.0_PvivaxSal1_Genome.fasta
 picard=/nas02/apps/picard-1.88/picard-tools-1.88
 gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
 
-#for name in `cat samplenames6.txt`
+#for name in `cat names/samplenames6.txt`
 #do
 
 ### ALIGN PAIRED-END READS WITH BWA_MEM
@@ -124,20 +124,22 @@ gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
 #java -jar $gatk \
 #	-T RealignerTargetCreator \
 #	-R $ref \
-#	-L gatk.intervals \
+#	-L intervals/gatk.intervals \
 #	-I aln/$name.dedup.bam \
 #	-o aln/$name.realigner.intervals \
 #	-nt 4
+#		# gatk.intervals includes just the chromosomes and mitochondria
 
 ### PERFORM THE ACTUAL REALIGNMENT
 #java -jar $gatk 
 #	-T IndelRealigner \
 #	-R $ref \
-#	-L gatk.intervals \
+#	-L intervals/gatk.intervals \
 #	-I aln/$name.dedup.bam \
 #	-targetIntervals \
 #	aln/$name.realigner.intervals \
 #	-o aln/$name.realn.bam
+#		# gatk.intervals includes just the chromosomes and mitochondria
 
 #done
 
@@ -149,11 +151,12 @@ gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
 #java -jar $gatk \
 #	-T UnifiedGenotyper \
 #	-R $ref \
-#	-L gatk.intervals \
+#	-L intervals/gatk.intervals \
 #	-I goodbamnames.list \
 #	-o variants/good69.vcf \
 #	-ploidy 1 \
 #	-nt 8
+#		# gatk.intervals includes just the chromosomes and mitochondria
 
 ##########################################################################
 ########################### VARIANT FILTERING ############################
@@ -176,9 +179,9 @@ java -jar $gatk \
 	-R $ref \
 	-V variants/good69.vcf \
 	-L variants/05xAT100%.intervals \
-	-XL neafseyExclude.intervals \
-	-XL trfExclude.intervals \
-	-XL subtelomeres.intervals \
+	-XL intervals/neafseyExclude.intervals \
+	-XL intervals/trfExclude.intervals \
+	-XL intervals/subtelomeres.intervals \
 	--filterExpression "QD < 5.0" \
 	--filterName "QD" \
 	--filterExpression "MQ < 60.0" \
@@ -192,6 +195,7 @@ java -jar $gatk \
 	--logging_level ERROR \
 	-o variants/good69.qual.vcf
 		# --logging_level ERROR suppresses any unwanted messages
+		# The three .intervals files contain intervals that should be excluded
 
 ## SELECT ONLY THE RECORDS THAT PASSED ALL QUALITY FILTERS
 java -jar $gatk \
@@ -207,6 +211,16 @@ java -jar $gatk \
 
 ## CALCULATE COVERAGE
 #bedtools genomecov -ibam aln/$name.realn.bam -max 10 | grep genome > coverage/$name.cov10
+
+### PERCENT ALIGNED
+#for name in `cat samplenames.txt`
+#do
+
+#echo $name >> percentAln.dedup.txt
+#samtools flagstat aln/$name.dedup.bam >> percentAln.dedup.txt
+
+#done
+
 
 ### GATK DEPTH OF COVERAGE CALCUALTOR
 #java -Xmx10g -jar /nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar \
