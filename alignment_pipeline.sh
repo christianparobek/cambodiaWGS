@@ -31,7 +31,9 @@
 
 ref=/proj/julianog/refs/PvSAL1_v10.0/PlasmoDB-10.0_PvivaxSal1_Genome.fasta
 picard=/nas02/apps/picard-1.88/picard-tools-1.88
-gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
+gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.3-0/GenomeAnalysisTK.jar
+neafsey=/proj/julianog/sequence_reads/previously_published/natgen_neafsey_2012/
+chan=/proj/julianog/sequence_reads/previously_published/pntd_chan_2012/
 
 #for name in `cat names/samplenames6.txt`
 #do
@@ -88,7 +90,7 @@ gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
 
 ## ALIGN PAIRED-END READS WITH BWA_MEM - not fancy... just simple
 
-#for name in `cat BB-KP_names.cleanup.txt`
+#for name in `cat names/publishedGenomes-chan.txt`
 #do
 
 #bwa mem -M \
@@ -96,8 +98,8 @@ gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
 #	-v 2 \
 #	-R "@RG\tID:$name\tPL:illumina\tLB:$name\tSM:$name" \
 #	$ref \
-#	reads/$name\_HWI-ST218_402_1_R1.fastq.gz \
-#	reads/$name\_HWI-ST218_402_1_R2.fastq.gz \
+#	$chan/$name\_1.fastq.gz \
+#	$chan/$name\_2.fastq.gz \
 #	> aln/$name.sam
 #		# -M marks shorter split hits as secondary
 #		# -t indicates number of threads
@@ -107,7 +109,8 @@ gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
 #java -jar $picard/SortSam.jar \
 #	I=aln/$name.sam \
 #	O=aln/$name.sorted.bam \
-#	SO=coordinate
+#	SO=coordinate \
+#	TMP_DIR=/netscr/prchrist/tmp_for_picard/
 
 ### MARK DUPLICATES
 #java -jar $picard/MarkDuplicates.jar \
@@ -131,7 +134,7 @@ gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
 #		# gatk.intervals includes just the chromosomes and mitochondria
 
 ### PERFORM THE ACTUAL REALIGNMENT
-#java -jar $gatk 
+#java -jar $gatk \
 #	-T IndelRealigner \
 #	-R $ref \
 #	-L intervals/gatk.intervals \
@@ -153,7 +156,7 @@ gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
 #	-R $ref \
 #	-L intervals/gatk.intervals \
 #	-I goodbamnames.list \
-#	-o variants/good69.vcf \
+#	-o variants/prevPub.vcf \
 #	-ploidy 1 \
 #	-nt 8
 #		# gatk.intervals includes just the chromosomes and mitochondria
@@ -173,37 +176,38 @@ gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar
 #		# Output interval file contains sites that passed
 #		# Would be more elegant to use 1.0 instad of 0.99999, but that doesn't work
 
-## FILTER VCF BY NEAFSEY PARALOGS, TANDEM REPEATS, SUBTELOMERES, AND QUALITY SCORES
-java -jar $gatk \
-	-T VariantFiltration \
-	-R $ref \
-	-V variants/good69.vcf \
-	-L variants/05xAT100%.intervals \
-	-XL intervals/neafseyExclude.intervals \
-	-XL intervals/trfExclude.intervals \
-	-XL intervals/subtelomeres.intervals \
-	--filterExpression "QD < 5.0" \
-	--filterName "QD" \
-	--filterExpression "MQ < 60.0" \
-	--filterName "MQ" \
-	--filterExpression "FS > 10.0" \
-	--filterName "FS" \
-	--filterExpression "MQRankSum < -5.0" \
-	--filterName "MQRankSum" \
-	--filterExpression "ReadPosRankSum < -5.0" \
-	--filterName "ReadPosRankSum" \
-	--logging_level ERROR \
-	-o variants/good69.qual.vcf
-		# --logging_level ERROR suppresses any unwanted messages
-		# The three .intervals files contain intervals that should be excluded
+### FILTER VCF BY NEAFSEY PARALOGS, TANDEM REPEATS, SUBTELOMERES, AND QUALITY SCORES
+#java -jar $gatk \
+#	-T VariantFiltration \
+#	-R $ref \
+#	-V variants/good69.vcf \
+#	-L variants/05xAT100%.intervals \
+#	-XL intervals/neafseyExclude.intervals \
+#	-XL intervals/trfExclude.intervals \
+#	-XL intervals/subtelomeres.intervals \
+#	--filterExpression "QD < 5.0" \
+#	--filterName "QD" \
+#	--filterExpression "MQ < 60.0" \
+#	--filterName "MQ" \
+#	--filterExpression "FS > 10.0" \
+#	--filterName "FS" \
+#	--filterExpression "MQRankSum < -5.0" \
+#	--filterName "MQRankSum" \
+#	--filterExpression "ReadPosRankSum < -5.0" \
+#	--filterName "ReadPosRankSum" \
+#	--logging_level ERROR \
+#	-o variants/good69.qual.vcf
+#		# --logging_level ERROR suppresses any unwanted messages
+#		# The three .intervals files contain intervals that should be excluded
 
-## SELECT ONLY THE RECORDS THAT PASSED ALL QUALITY FILTERS
-java -jar $gatk \
-	-T SelectVariants \
-	-R $ref \
-	-V variants/good69.qual.vcf \
-	-select 'vc.isNotFiltered()' \
-	-o variants/good69.pass.vcf
+### SELECT ONLY THE RECORDS THAT PASSED ALL QUALITY FILTERS
+#java -jar $gatk \
+#	-T SelectVariants \
+#	-R $ref \
+#	-V variants/good69.qual.vcf \
+#	-select 'vc.isNotFiltered()' \
+#	-restrictAllelesTo BIALLELIC \
+#	-o variants/good69.pass.vcf
 
 ##########################################################################
 ############################## EXTRA TOOLS ###############################
@@ -250,5 +254,19 @@ java -jar $gatk \
 ## VALIDATE VCF FORMAT FOR GATK
 #java -Xmx2g -jar /nas02/apps/biojars-1.0/GenomeAnalysisTK-3.2-2/GenomeAnalysisTK.jar -R $ref -T ValidateVariants --validationTypeToExclude ALL --variant plasmoDB_vivax_snps.vcf
 
-## COMPARE VCF FILES
-#vcftools --vcf bwa_vs_bt2/OM012-BiooBarcode1_CGATGT-bt2.vcf --diff bwa_vs_bt2/OM012-BiooBarcode1_CGATGT-bwa.vcf --out bwa_vs_bt2/compare.txt
+### COMPARE VCF FILES
+#vcftools \
+#	--vcf bwa_vs_bt2/OM012-BiooBarcode1_CGATGT-bt2.vcf \
+#	--diff bwa_vs_bt2/OM012-BiooBarcode1_CGATGT-bwa.vcf \
+#	--out bwa_vs_bt2/compare.txt
+
+## TRYING OUT HAPLOTYPE CALLER
+java -jar $gatk \
+	-T HaplotypeCaller \
+	-R $ref \
+	-L intervals/gatk.intervals \
+	-I aln/OM012.realn.bam \
+	-o variants/HC_om012_ploidy1.vcf \
+	-ploidy 1 \
+		# gatk.intervals includes just the chromosomes and mitochondria
+
