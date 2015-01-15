@@ -34,18 +34,31 @@ picard=/nas02/apps/picard-1.88/picard-tools-1.88
 gatk=/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.3-0/GenomeAnalysisTK.jar
 neafsey=/proj/julianog/sequence_reads/previously_published/natgen_neafsey_2012/
 chan=/proj/julianog/sequence_reads/previously_published/pntd_chan_2012/
+threads=4
 
-#for name in `cat names/samplenames6.txt`
+#for name in `cat names/BB-KP_names.txt`
 #do
 
 ### ALIGN PAIRED-END READS WITH BWA_MEM
-#	for rgid in `cat rgidnames.txt`
+#	for rgid in `cat names/rgidnames.txt`
 #	do
 #		if test -f reads/$name$rgid\_R1.fastq.gz
 #		then
 #			bwa mem -M \
-#			-t 8 \
+#			-t $threads \
 #			-v 2 \
+#			-A 2 \
+#			-L 15 \
+#			-U 9 \
+#			-T 75 \
+#			-k 19 \
+#			-w 100 \
+#			-d 100 \
+#			-r 1.5 \
+#			-c 10000 \
+#			-B 4 \
+#			-O 6 \
+#			-E 1 \
 #			-R "@RG\tID:$name$rgid\tPL:illumina\tLB:$name\tSM:$name" \
 #			$ref \
 #			reads/$name$rgid\_R1.fastq.gz \
@@ -57,9 +70,9 @@ chan=/proj/julianog/sequence_reads/previously_published/pntd_chan_2012/
 #		fi
 #	done
 
-### MERGE, SORT, AND COMPRESS SAM FILES
-###	Need to merge the correct number of files for each sample
-###	Construct conditionals to test number of SAM files, then merge
+# MERGE, SORT, AND COMPRESS SAM FILES
+#	Need to merge the correct number of files for each sample
+#	Construct conditionals to test number of SAM files, then merge
 
 #array=(`ls aln/ | grep $name`)
 
@@ -87,41 +100,50 @@ chan=/proj/julianog/sequence_reads/previously_published/pntd_chan_2012/
 #		MERGE_SEQUENCE_DICTIONARIES=true
 #	fi
 
-
-## ALIGN PAIRED-END READS WITH BWA_MEM - not fancy... just simple
-
-#for name in `cat names/publishedGenomes-chan.txt`
-#do
-
+### ALIGN PAIRED-END READS WITH BWA_MEM FOR CHAN AND NEAFSEY GENOMES
 #bwa mem -M \
-#	-t 4 \
+#	-t $threads \
 #	-v 2 \
+#	-A 2 \
+#	-L 15 \
+#	-U 9 \
+#	-T 75 \
+#	-k 19 \
+#	-w 100 \
+#	-d 100 \
+#	-r 1.5 \
+#	-c 10000 \
+#	-B 4 \
+#	-O 6 \
+#	-E 1 \
 #	-R "@RG\tID:$name\tPL:illumina\tLB:$name\tSM:$name" \
 #	$ref \
-#	$chan/$name\_1.fastq.gz \
-#	$chan/$name\_2.fastq.gz \
+#	$neafsey/$name\_1.fastq.gz \
+#	$neafsey/$name\_2.fastq.gz \
 #	> aln/$name.sam
 #		# -M marks shorter split hits as secondary
 #		# -t indicates number of threads
 #		# -v 2 is verbosity ... warnings and errors only
 
 ### SORT SAM FILE AND OUTPUT AS BAM
-#java -jar $picard/SortSam.jar \
-#	I=aln/$name.sam \
-#	O=aln/$name.sorted.bam \
+#java -jar /nas02/apps/picard-1.88/picard-tools-1.88/SortSam.jar \
+#	I=aln/$name$rgid.sam \
+#	O=aln/$name.bam \
 #	SO=coordinate \
 #	TMP_DIR=/netscr/prchrist/tmp_for_picard/
 
 ### MARK DUPLICATES
 #java -jar $picard/MarkDuplicates.jar \
-#	I=aln/$name.sorted.bam \
+#	I=aln/$name.bam \
 #	O=aln/$name.dedup.bam \
 #	METRICS_FILE=aln/$name.dedup.metrics \
+#	TMP_DIR=/netscr/prchrist/tmp_for_picard/ \
 #	REMOVE_DUPLICATES=False
 
 ### INDEX BAM FILE PRIOR TO REALIGNMENT
 #java -jar $picard/BuildBamIndex.jar \
 #	INPUT=aln/$name.dedup.bam
+#	TMP_DIR=/netscr/prchrist/tmp_for_picard/
 
 ### IDENTIFY WHAT REGIONS NEED TO BE REALIGNED 
 #java -jar $gatk \
@@ -130,7 +152,7 @@ chan=/proj/julianog/sequence_reads/previously_published/pntd_chan_2012/
 #	-L intervals/gatk.intervals \
 #	-I aln/$name.dedup.bam \
 #	-o aln/$name.realigner.intervals \
-#	-nt 4
+#	-nt $threads
 #		# gatk.intervals includes just the chromosomes and mitochondria
 
 ### PERFORM THE ACTUAL REALIGNMENT
@@ -144,21 +166,38 @@ chan=/proj/julianog/sequence_reads/previously_published/pntd_chan_2012/
 #	-o aln/$name.realn.bam
 #		# gatk.intervals includes just the chromosomes and mitochondria
 
+### CLEANUP
+#rm aln/*dedup.bam
+#rm aln/*dedup.bai
+#rm aln/*.sam
+#rm aln/*.intervals
+#rm aln/*.merged.bam
+
 #done
 
 ##########################################################################
 ############################ VARIANT CALLING #############################
 ##########################################################################
 
-### MULTIPLE-SAMPLE VARIANT CALLING (UG IS GATK'S CALLER FOR NON-DIPLOID)
+### MULTIPLE-SAMPLE VARIANT CALLING
 #java -jar $gatk \
 #	-T UnifiedGenotyper \
 #	-R $ref \
 #	-L intervals/gatk.intervals \
-#	-I goodbamnames.list \
-#	-o variants/prevPub.vcf \
+#	-I names/testBams.list \
+#	-o variants/test.vcf \
 #	-ploidy 1 \
-#	-nt 8
+#	-nt $threads
+#		# gatk.intervals includes just the chromosomes and mitochondria
+
+### TRYING OUT HAPLOTYPE CALLER
+#java -jar $gatk \
+#	-T HaplotypeCaller \
+#	-R $ref \
+#	-L intervals/gatk.intervals \
+#	-I names/testBams.list \
+#	-o variants/test.vcf \
+#	-ploidy 1
 #		# gatk.intervals includes just the chromosomes and mitochondria
 
 ##########################################################################
@@ -208,6 +247,37 @@ chan=/proj/julianog/sequence_reads/previously_published/pntd_chan_2012/
 #	-select 'vc.isNotFiltered()' \
 #	-restrictAllelesTo BIALLELIC \
 #	-o variants/good69.pass.vcf
+
+
+##########################################################################
+################# GETTING MULTIFASTA FOR SPECIFIC GENES ##################
+##########################################################################
+
+for name in `cat names/good42.txt`
+do
+
+## SPLIT VCF INTO INDIVIDUAL VCFs
+java -Xmx2g -jar $gatk \
+	-T SelectVariants \
+	-R $ref \
+	--variant variants/good42.5xAT100%.vcf \
+	-sn $name \
+	-o variants/indivs/$name.vcf
+
+## VCF TO FASTA
+java -Xmx2g -jar $gatk \
+	-T FastaAlternateReferenceMaker \
+	-R $ref \
+	--variant variants/indivs/$name.vcf \
+	-o variants/indivs/$name.fa
+		## --rawOnelineSeq prints only sequence
+
+## CREATING THE MULTIFASTA
+echo ">"$name >> variants/good42.fa
+tail -n +2 variants/indivs/$name.fa >> variants/good42.fa
+	# The tail command removes the fasta header line
+
+done
 
 ##########################################################################
 ############################## EXTRA TOOLS ###############################
@@ -260,13 +330,24 @@ chan=/proj/julianog/sequence_reads/previously_published/pntd_chan_2012/
 #	--diff bwa_vs_bt2/OM012-BiooBarcode1_CGATGT-bwa.vcf \
 #	--out bwa_vs_bt2/compare.txt
 
-## TRYING OUT HAPLOTYPE CALLER
-java -jar $gatk \
-	-T HaplotypeCaller \
-	-R $ref \
-	-L intervals/gatk.intervals \
-	-I aln/OM012.realn.bam \
-	-o variants/HC_om012_ploidy1.vcf \
-	-ploidy 1 \
-		# gatk.intervals includes just the chromosomes and mitochondria
+### TRYING OUT HAPLOTYPE CALLER
+#java -jar $gatk \
+#	-T HaplotypeCaller \
+#	-R $ref \
+#	-L intervals/gatk.intervals \
+#	-I aln/OM015.realn.bam \
+#	-o variants/HC_om015_ploidy1.vcf \
+#	-ploidy 1 \
+#		# gatk.intervals includes just the chromosomes and mitochondria
 
+### MAKE IGV BATCH FILES
+#echo "## Batch script to take pictures of the pvmsp1 intervening region
+#new
+#genome Pvivax_Sal1_v10.0
+#snapshotDirectory /proj/julianog/users/ChristianP/cambodiaWGS/bwa-sensitivity
+#load /proj/julianog/users/ChristianP/cambodiaWGS/bwa-sensitivity/BB012-$LValue.realn.bam
+#goto Pv_Sal1_chr07:1,161,402-1,163,140
+#snapshot L$LValue.png
+#exit" > bwa-sensitivity/BB012-$LValue.batch
+
+#igv -b bwa-sensitivity/BB012-$LValue.batch
