@@ -1,0 +1,38 @@
+---
+title: "popGenome_analysis"
+author: "Christian Parobek"
+date: "01/20/2015"
+output: html_document
+---
+
+Not sure yet what I'm doing here... 
+
+```{r, engine='bash'}
+
+
+
+```
+
+
+First, need to load library:
+```{r}
+library(PopGenome)
+```
+
+Next, read in the data:
+```{r}
+data <- readData("data", format="VCF")
+    # Only need to point to the folder that contains the files
+    # , gffpath="data"
+
+data <- readVCF("data", frompos=1, topos=10000000)
+```
+
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
