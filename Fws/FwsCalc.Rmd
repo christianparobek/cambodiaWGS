@@ -1,0 +1,109 @@
+---
+title: "FwsCalc"
+author: "Christian Parobek"
+date: "01/20/2015"
+output: html_document
+---
+
+We want to calculate Fws for the _P. falciparum_ and _P. vivax_ samples from our Uber WGS data. [Link](http://www.nature.com/nature/journal/v487/n7407/full/nature11174.html) for more details on Fws. This Rmd will calculate Fws from a multiVCF.
+
+First, we need to get the VCF file formatted for input into R. Using `sed`.
+```{r, engine='bash'}
+sed 's/#CHROM/CHROM/' good41.pass.vcf > pfForFwsCalc.vcf
+sed 's/#CHROM/CHROM/' test.vcf > pvForFwsCalc.vcf
+    # Uncomment the header line that begins with "#CHROM"
+```
+
+Load the regex library and load the _P. falciparum_ and _P. vivax_ datasets:
+```{r, echo=FALSE}
+## LOAD REGEX LIBRARY
+library(stringr)
+
+## READ IN THE Pf AND Pv MULTIVCFs
+pfVCF <- read.table("pfForFwsCalc.vcf", comment.char="#", header=TRUE)
+pvVCF <- read.table("pvForFwsCalc.vcf", comment.char="#", header=TRUE)
+
+```
+
+
+Now that the VCF file is properly formatted, read into R and calculate appropriate statistics.
+
+Define a function that will:
+
+1. Properly format the VCF
+2. Extract the read-depth data using regex
+3. Calculate relevant statistics
+
+```{r, echo=FALSE}
+## DEFINE A FUNCTION THAT WILL CALCULATE Fws FOR EACH DATASET
+
+fwsCalc <- function(dataset) {
+
+  ## REMOVE FIRST NINE COLUMNS FROM THE MULTIVCFs
+  data <- dataset[-c(1:9)]
+  
+  ## EXTRACT RELEVANT READ DEPTH DATA, FIRST MATCH
+  refCT <- as.data.frame(sapply(data, function(x) str_extract(x, ":[0123456789]+,")))
+      # The numbers pre-comma are ref counts
+      # Convert to data frame on the fly
+  refCT <- sapply(refCT, function(x) str_extract(x, "[0123456789]+"))
+      # Clean out the extra chars, leaving only numbers
+  refCT <- apply(refCT, c(1,2), as.numeric)
+      # Convert to a numeric matrix
+  
+  altCT <- as.data.frame(sapply(data, function(x) str_extract(x, ",[0123456789]+:")))
+      # The numbers post-comma are alt counts
+      # Convert to data frame on the fly
+  altCT <- sapply(altCT, function(x) str_extract(x, "[0123456789]+"))
+      # Clean out the extra chars, leaving only numbers
+  altCT <- apply(altCT, c(1,2), as.numeric)
+      # Convert to a numeric matrix
+  
+  ## CALCULATE qs, ps, and Hs, THE PROPORTIONS OF EACH ALLELE IN THE POPULATION
+  ps <- rowSums(refCT)/(rowSums(refCT)+rowSums(altCT))
+  qs <- rowSums(altCT)/(rowSums(refCT)+rowSums(altCT))
+  Hs <- mean(2*ps*qs)
+      # Calculate Hs for each variant and take the mean of all variants
+  
+  ## CALCULATE qw, pw, and Hw, THE PROPORTIONS OF EACH ALLELE IN EACH INDIVIDUAL
+  totCT <- refCT + altCT
+      # Make a matrix of total counts
+  pw <- matrix(, nrow = length(data[,1]), ncol = length(names(data)))
+      # Set up pw matrix
+  qw <- matrix(, nrow = length(data[,1]), ncol = length(names(data)))
+      # Set up qw matrix
+  Hw <- matrix(, nrow = length(data[,1]), ncol = length(names(data)))
+      # Set up Hw matrix
+  
+  for (i in 1:length(names(data))) {
+    for (j in 1:length(data[,1])) {
+      
+      pw[j,i] <- refCT[j,i]/totCT[j,i] # Calculate pw per individual and per allele
+      qw[j,i] <- altCT[j,i]/totCT[j,i] # Calculate qw per individual and per allele
+      Hw[j,i] <- 2*pw[j,i]*qw[j,i] # Calculate Hw per individual and per allele
+      
+    }
+  }
+  
+  Hw <- colMeans(Hw)
+      # Take the column means of Hw matrix, to get a single Hw score for each sample
+  
+  ## CALCULATE Fws
+  1 - Hw/Hs
+  
+  }
+```
+
+Now, pass the _P. falciparum_ and _P. vivax_  datasets to that function.
+```{r, echo=FALSE}
+
+pv_fws <- fwsCalc(pvVCF)
+
+pf_fws <- fwsCalc(pfVCF)
+
+hist(pv_fws, breaks=14)
+
+hist(pf_fws, breaks=14)
+
+```
+
