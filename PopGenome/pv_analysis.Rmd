@@ -5,34 +5,287 @@ date: "01/20/2015"
 output: html_document
 ---
 
-Not sure yet what I'm doing here... 
 
-```{r, engine='bash'}
+Might need to split up my genome into chromosomes:
+```{r, engine='bash', cache=TRUE}
+for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14
+do
 
+grep "^#\|Pv_Sal1_chr$i" /proj/julianog/users/ChristianP/cambodiaWGS/variants/good69.pass.vcf | grep -v "AAKM" > test/vcf/chr$i.vcf
+  
+grep "^#\|Pv_Sal1_chr$i" /proj/julianog/refs/PvSAL1_v10.0/PlasmoDB-10.0_PvivaxSal1.gff | grep -v "##FASTA\|>Pv_Sal1_chr$i\|AAKM"> test/gff/chr$i.gff
 
-
+done
 ```
 
+As it turns out, PopGenome infers the chromosome length from the position of the final VCF entry. So, for example, on Chromosome 1, the final entry for Pv_Sal1_chr01 is at 800738, so that's how long the `@n.sites` command says the chromosome is. That might be OK.
 
-First, need to load library:
-```{r}
-library(PopGenome)
-```
+Also, when I import a multiVCF file using readData(), any ALT alleles that are fixed in the population contained within the multiVCF are dropped from the `GENOME.class` object that PopGenome produces, so the number of variant entries might be a little lower in the GENOME.class object than in the original VCF file.
+
+When importing the GFF, watch out for any spurious lines after the GFF data section. For example, I may have to delete lines that are comprised of "##FASTA"" or ">Pv_Sal1_chr01""
 
 Next, read in the data:
 ```{r}
-data <- readData("data", format="VCF")
-    # Only need to point to the folder that contains the files
-    # , gffpath="data"
+## Load the PopGenome library
+library(PopGenome)
 
-data <- readVCF("data", frompos=1, topos=10000000)
+## Load the data
+## Genomes need to be broken up by chr... see above
+data <- readData("whole_genome/vcf/", format="VCF", gffpath = "whole_genome/gff/", ) 
+    # VCF and GFF file must be placed in their own unique folders
+    # Can have vcf/gff/txt extensions
+
+## Concatenate all chrs together
+## I think this might work........
+## Problem: If you run `onePop@n.sites` you only get the length of the last chr
+## But if you run `onePop_genes@region.names` you get back a list of ~5300 genes
+## Could this be a bug?
+onePop <- concatenate.regions(data)
+
+## Define populations: BB, KP, and OM
+indivs <- get.individuals(onePop)
+threePops <- set.populations(onePop, list(
+  indivs[[1]][1:69][grep("BB", indivs[[1]][1:length(indivs[[1]])])], 
+  indivs[[1]][1:69][grep("KP", indivs[[1]][1:length(indivs[[1]])])], 
+  indivs[[1]][1:69][grep("OM", indivs[[1]][1:length(indivs[[1]])])]))
+
+
+
+
+
+
+data <- set.synnonsyn(data,ref.chr="ref/PlasmoDB-10.0_PvivaxSal1_Genome.fasta")
+
+data@n.sites
+data@n.biallelic.sites
+    # gives number of biallelic sites
+
+
+
+
+
+## Linkage Disequilibrium
+data <- linkage.stats(data)
+
+data <- calc.R2(data)
+
+```
+
+Calculate Tajima's D for all three Pv populations: OM, BB, and KP. Note that this might not be a fair calculation at all, since we probably shouldn't be doing Tajima's D on small populations like BB and KP.
+```{r}
+## Calculate Tajima's D by gene for BB+OM+KP as one population
+onePop_genes <- splitting.data(onePop, subsites="gene")
+onePop_genes <- neutrality.stats(onePop_genes)
+
+## What if we want to look at Tajima'D by position?
+new <- cbind(onePop_genes@Tajima.D, 1:length(onePop_genes@Tajima.D))
+plot(new[,1] ~ new[,2])
+
+## Calculate Tajima's D by gene for BB+OM+KP as three separate populations
+threePops_genes <- splitting.data(threePops, subsites="gene")
+threePops_genes <- neutrality.stats(threePops_genes)
+    # Genes for which it gives a NA don't have any variants
+    # Could be because they are truly invariant or because they were masked genes
+    # Need to confirm that the Tajima's D values I get here are same as calculated in DnaSP!!!!!> 
+
+plot(density(threePops_genes@Tajima.D[,1], na.rm=TRUE), xlim=c(-3,3), lty=2, lwd=2, main="Whole-Genome Genewise Tajima's D: BB, KP, and OM", xlab="Tajima's D", ylab="Kernel Density") # Plot BB
+lines(density(threePops_genes@Tajima.D[,2], na.rm=TRUE), lty=3, lwd=2) # Plot KP (??)
+lines(density(threePops_genes@Tajima.D[,3], na.rm=TRUE), lty=4, lwd=2) # Plot OM (??)
+lines(density(onePop_genes@Tajima.D, na.rm=TRUE), lwd=2) # Plot all three pops together
+legend("topright", c("Combined", "BB", "KP", "OM"), lty=c(1,2,3,4), lwd=2)
+```
+
+Calculate Tajima's D by gene vs Tajima's D by exon for the OM population:
+```{r}
+## Calculate Tajima's D by gene for BB+OM+KP as three separate populations
+threePops_exons <- splitting.data(threePops, subsites="exon")
+threePops_exons <- neutrality.stats(threePops_exons)
+
+plot(density(threePops_exons@Tajima.D[,3], na.rm=TRUE), xlim=c(-3,3), lty=5, lwd=2, main="Whole-Genome Tajima's D: Genes vs. Exons", xlab="Tajima's D", ylab="Kernel Density") # Plot OM exons
+lines(density(threePops_genes@Tajima.D[,3], na.rm=TRUE), lty=1, lwd=2) # Plot OM genes
+
+legend("topright", c("Genes", "Exons"), lty=c(1,5), lwd=2)
+
+## Could also look at distribution of TajD in merozoite vs non-merozoite exons
+```
+
+Looking for selective sweeps:
+```{r}
+## Looking for selective sweeps??
+## CLR might be more robust to demography, etc (Neilsen 2005)
+## Use an FDR to determine which of these are significant
+
+## CLR
+## create global set
+onePop <- detail.stats(onePop)
+freq <- onePop@region.stats@minor.allele.freqs[[1]]
+freq.table <- list()
+freq.table[[1]] <- table(freq)
+## define the region of interest
+onePop_genes <- splitting.data(data, subsites="gene")
+## calculate CLR
+onePop_genes <- sweeps.stats(onePop_genes, freq.table=freq.table)
+
+## Plot CLR Histogram
+hist(onePop_genes@CLR)
+## Plot CLR by Position
+old <- cbind(onePop_genes@CLR, 1:length(onePop_genes@CLR))
+plot(old[,1] ~ old[,2])
+
+## Plot CL Histogram
+hist(onePop_genes@CL)
+## Plot CL by Position
+old <- cbind(onePop_genes@CL, 1:length(onePop_genes@CL))
+plot(old[,1] ~ old[,2])
+
+```
+
+And doing Fst by Gene:
+```{r}
+threePops_genes <- F_ST.stats(threePops_genes)
+threePops_genes <- detail.stats(threePops_genes, site.FST = TRUE) 
+  ## This actually calculates the Fst values that go in the @region.stats@site.FST slot
+  ## Do I need to specify populations?
+
+## Plot Fst for a single gene
+plot(threePops_genes@region.stats@site.FST[[5219]])
+
+## Histogram of Fsts for all genes
+fsts <- lapply(threePops_genes@region.stats@site.FST, FUN = mean)
+hist(as.numeric(fsts))
+
+## Plot Fst by Position
+plot(as.numeric(fsts))
+
+```
+
+And doing Fst by Exon:
+```{r}
+
+threePops_exons <- F_ST.stats(threePops_exons)
+threePops_exons <- detail.stats(threePops_exons, site.FST = TRUE) 
+  ## This actually calculates the Fst values that go in the @region.stats@site.FST slot
+  ## Do I need to specify populations?
+
+## Plot Fst for a single gene
+plot(threePops_exons@region.stats@site.FST[[9999]])
+
+## Histogram of Fsts for all exons
+fsts <- lapply(threePops_exons@region.stats@site.FST, FUN = mean)
+hist(as.numeric(fsts))
+
+## Plot Fst by Position
+plot(as.numeric(fsts))
 ```
 
 
-You can also embed plots, for example:
 
-```{r, echo=FALSE}
-plot(cars)
+Coalescent simulations using `ms` (Hudson 2002).
+Set params for coal sims:
+http://rpackages.ianhowson.com/cran/PopGenome/man/test.params-class.html
+```{r}
+## OK maybe want to do coalescent simulations for every gene... locus-by-locus
+## Then get 5000 some p-values
+## Then do an FDR to find the significant ones
+
+## Seems like I need to read in the data by chromosome
+## Wish there were a better way to do this
+chr01 <- readData("chr01/vcf/", format="VCF", gffpath = "chr01/gff/", ) 
+chr02 <- readData("chr02/vcf/", format="VCF", gffpath = "chr02/gff/", ) 
+
+
+chr_name <- readData("chr01/vcf/", format="VCF", gffpath = "chr01/gff/", )
+
+
+## Define function to get coalescent simulations of each gene
+## Will need to update/rerun this once I'm using msms, accounting for selection, etc
+### SOOOOOOOOO FRUSTRATING!!!
+coal.sims <- function(chr_name, index){
+
+  chr_genes <- splitting.data(chr_name, subsites="gene")
+  start <- as.numeric(str_extract(chr_genes@region.names[index], "[0-9]+")) ## Get start position
+  end <- as.numeric(str_extract(chr_genes@region.names[index], " [0-9]+")) ## Get end position
+  gene <- splitting.data(chr_name, positions=list(start:end), type=2) # type=2 indicates it's chr position
+  gene <- neutrality.stats(gene)
+  gene_coal <- MS(gene, thetaID="Tajima", neutrality=TRUE, niter=500)
+   
+  ## Get the Tajima's D simulations
+  sims <- MS_getStats(gene_coal)[,1]
+  obs <- gene_coal@obs.val[[1]][,1] # Get the observed Tajima's D
+  ## p-value for balancing selection (pos Taj D)
+  bsp <- length(sims[sims > obs])/length(sims)
+  
+return(bsp)
+}
+
+
+
+
+
+
+chr01 <- readData("chr01/vcf/", format="VCF", gffpath = "chr01/gff/", ) 
+gene <- splitting.data(chr01, positions=list(2350:4494), type=2)
+gene <- neutrality.stats(gene)
+gene_coales <- MS(gene, thetaID="Tajima", neutrality=TRUE, niter=20)
+
+
+
+  chr_genes <- splitting.data(chr01, subsites="gene")
+  start <- as.numeric(str_extract(chr_genes@region.names[1], "[0-9]+")) ## Get start position
+  end <- as.numeric(str_extract(chr_genes@region.names[1], " [0-9]+")) ## Get end position
+  
+
+  gene <- splitting.data(chr01, positions=list(6000:7000), type=2) # type=2 indicates it's chr position
+  gene <- neutrality.stats(gene)
+  gene_coal <- MS(gene, thetaID="Tajima", neutrality=TRUE, niter=20)
+   
+  ## Get the Tajima's D simulations
+  sims <- MS_getStats(gene_coal)[,1]
+  obs <- gene_coal@obs.val[[1]][,1] # Get the observed Tajima's D
+  ## p-value for balancing selection (pos Taj D)
+  bsp <- length(sims[sims > obs])/length(sims)
+
+
+
+
+
+
+
+
+
+## Get a single gene
+start <- as.numeric(str_extract(chr01_genes@region.names[1], "[0-9]+")) ## Get start position
+end <- as.numeric(str_extract(chr01_genes@region.names[1], " [0-9]+")) ## Get end position
+gene1 <- splitting.data(data, positions=list(start:end), type=2) # type=2 indicates it's chr position
+gene1 <- neutrality.stats(gene1)
+gene1_coal <- MS(gene1, thetaID="Tajima", neutrality=TRUE, niter=500)
+
+## Get the Tajima's D simulations and plot
+sims <- MS_getStats(gene1_coal)[,1]
+plot(density(sims)) # plot the sims
+obs <- gene1_coal@obs.val[[1]][,1] # Get the observed Tajima's D
+abline(v = obs)
+
+## p-value for balancing selection (pos Taj D)
+length(sims[sims > obs])/length(sims)
+## p-value for directional selection (neg Taj D)
+length(sims[sims < obs])/length(sims)
+
+
+
+
+
+## How to view the results. What's the diff between the following?
+MS_getStats(gene1_coal)[,1]
+coal@average[[1]]
+
+
+## Can go real deep in these datastructure
+coal@locus[[14]]@quantiles[[1]]
+
+
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
