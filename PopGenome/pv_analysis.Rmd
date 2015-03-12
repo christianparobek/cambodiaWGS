@@ -8,12 +8,23 @@ output: html_document
 
 Might need to split up my genome into chromosomes:
 ```{r, engine='bash', cache=TRUE}
+# For Pv
 for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14
 do
 
 grep "^#\|Pv_Sal1_chr$i" /proj/julianog/users/ChristianP/cambodiaWGS/variants/good69.pass.vcf | grep -v "AAKM" > test/vcf/chr$i.vcf
   
 grep "^#\|Pv_Sal1_chr$i" /proj/julianog/refs/PvSAL1_v10.0/PlasmoDB-10.0_PvivaxSal1.gff | grep -v "##FASTA\|>Pv_Sal1_chr$i\|AAKM"> test/gff/chr$i.gff
+
+done
+
+# For Pf
+for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14
+do
+
+grep "^#\|^Pf3D7_$i\_v3" /proj/julianog/users/ChristianP/cambodiaWGS/PopGenome/pf_whole_genome/good41.pass.vcf > /proj/julianog/users/ChristianP/cambodiaWGS/PopGenome/pf_whole_genome/vcf/chr$i.vcf
+
+grep "^#\|^Pf3D7_$i\_v3" /proj/julianog/refs/Pf3D7_v9.3/PlasmoDB-9.3_Pfalciparum3D7.gff > /proj/julianog/users/ChristianP/cambodiaWGS/PopGenome/pf_whole_genome/gff/chr$i.gff 
 
 done
 ```
@@ -28,53 +39,56 @@ Next, read in the data:
 ```{r}
 ## Load the PopGenome library
 library(PopGenome)
+library(stringr)
 
-## Load the data
-## Genomes need to be broken up by chr... see above
-data <- readData("whole_genome/vcf/", format="VCF", gffpath = "whole_genome/gff/", ) 
-    # VCF and GFF file must be placed in their own unique folders
-    # Can have vcf/gff/txt extensions
+## Read in the VCFs and GFFs
+pv <- readData("pv_whole_genome/vcf/", format="VCF", gffpath = "pv_whole_genome/gff/")
 
-## Concatenate all chrs together
-## I think this might work........
-## Problem: If you run `onePop@n.sites` you only get the length of the last chr
-## But if you run `onePop_genes@region.names` you get back a list of ~5300 genes
-## Could this be a bug?
-onePop <- concatenate.regions(data)
+## Add REF info for Syn/NonSyn Sites
+pv <- set.synnonsyn(pv, ref.chr=c("pv_whole_genome/ref/chr01.fasta", "pv_whole_genome/ref/chr02.fasta","pv_whole_genome/ref/chr03.fasta","pv_whole_genome/ref/chr04.fasta","pv_whole_genome/ref/chr05.fasta","pv_whole_genome/ref/chr06.fasta","pv_whole_genome/ref/chr07.fasta","pv_whole_genome/ref/chr08.fasta","pv_whole_genome/ref/chr09.fasta","pv_whole_genome/ref/chr10.fasta","pv_whole_genome/ref/chr11.fasta","pv_whole_genome/ref/chr12.fasta","pv_whole_genome/ref/chr13.fasta","pv_whole_genome/ref/chr14.fasta"))
+  # 1 is syn
+  # 0 is nonsyn
 
 ## Define populations: BB, KP, and OM
-indivs <- get.individuals(onePop)
-threePops <- set.populations(onePop, list(
+indivs <- get.individuals(pv)
+pvPops <- set.populations(pv, list(
   indivs[[1]][1:69][grep("BB", indivs[[1]][1:length(indivs[[1]])])], 
   indivs[[1]][1:69][grep("KP", indivs[[1]][1:length(indivs[[1]])])], 
   indivs[[1]][1:69][grep("OM", indivs[[1]][1:length(indivs[[1]])])]))
 
+## Split data into genes
+genes <- splitting.data(pvPops, subsites="gene", whole.data = FALSE)
+  # Specify whole.data = FALSE because I don't want to concatenate regions
 
+## Extracting gene IDs from the gff INFO field
+## Need to use stringr's str_extract function to actually get the gene ID out of the big long string of INFO it returns
+chr01.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr01.gff", chr="Pv_Sal1_chr01", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr02.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr02.gff", chr="Pv_Sal1_chr02", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr03.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr03.gff", chr="Pv_Sal1_chr03", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr04.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr04.gff", chr="Pv_Sal1_chr04", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr05.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr05.gff", chr="Pv_Sal1_chr05", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr06.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr06.gff", chr="Pv_Sal1_chr06", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr07.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr07.gff", chr="Pv_Sal1_chr07", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr08.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr08.gff", chr="Pv_Sal1_chr08", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr09.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr09.gff", chr="Pv_Sal1_chr09", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr10.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr10.gff", chr="Pv_Sal1_chr10", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr11.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr11.gff", chr="Pv_Sal1_chr11", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr12.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr12.gff", chr="Pv_Sal1_chr12", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr13.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr13.gff", chr="Pv_Sal1_chr13", extract.gene.names=TRUE), "PVX_[0-9]+")
+chr14.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr14.gff", chr="Pv_Sal1_chr14", extract.gene.names=TRUE), "PVX_[0-9]+")
 
+## Make one big list out of all the little lists of gene IDs
+## Is there a more elegant way to do all this?
+chr.all.ids <- unlist(list(chr01.ids, chr02.ids, chr03.ids, chr04.ids, chr05.ids, chr06.ids, chr07.ids, chr08.ids, chr09.ids, chr10.ids, chr11.ids, chr12.ids, chr13.ids, chr14.ids))
 
-
-
-data <- set.synnonsyn(data,ref.chr="ref/PlasmoDB-10.0_PvivaxSal1_Genome.fasta")
-
-data@n.sites
-data@n.biallelic.sites
-    # gives number of biallelic sites
-
-
-
-
-
-## Linkage Disequilibrium
-data <- linkage.stats(data)
-
-data <- calc.R2(data)
-
+## Assign the @region.names slot with the new names - YEAH!!
+genes@region.names <- chr.all.ids
 ```
 
 Calculate Tajima's D for all three Pv populations: OM, BB, and KP. Note that this might not be a fair calculation at all, since we probably shouldn't be doing Tajima's D on small populations like BB and KP.
 ```{r}
 ## Calculate Tajima's D by gene for BB+OM+KP as one population
-onePop_genes <- splitting.data(onePop, subsites="gene")
+onePop_genes <- splitting.data(threePops, subsites="gene")
 onePop_genes <- neutrality.stats(onePop_genes)
 
 ## What if we want to look at Tajima'D by position?
@@ -240,8 +254,8 @@ gene_coales <- MS(gene, thetaID="Tajima", neutrality=TRUE, niter=20)
   gene_coal <- MS(gene, thetaID="Tajima", neutrality=TRUE, niter=20)
    
   ## Get the Tajima's D simulations
-  sims <- MS_getStats(gene_coal)[,1]
-  obs <- gene_coal@obs.val[[1]][,1] # Get the observed Tajima's D
+  sims <- MS_getStats(gene_coales)[,1]
+  obs <- gene_coales@obs.val[[1]][,1] # Get the observed Tajima's D
   ## p-value for balancing selection (pos Taj D)
   bsp <- length(sims[sims > obs])/length(sims)
 
@@ -263,7 +277,7 @@ gene1_coal <- MS(gene1, thetaID="Tajima", neutrality=TRUE, niter=500)
 ## Get the Tajima's D simulations and plot
 sims <- MS_getStats(gene1_coal)[,1]
 plot(density(sims)) # plot the sims
-obs <- gene1_coal@obs.val[[1]][,1] # Get the observed Tajima's D
+obs <- gene_coales@obs.val[[1]][,1] # Get the observed Tajima's D
 abline(v = obs)
 
 ## p-value for balancing selection (pos Taj D)
@@ -288,4 +302,85 @@ coal@locus[[14]]@quantiles[[1]]
 ```
 
 
+## Code for circos figure
+```{r}
+chr01 <- readData("chr01/vcf/", format="VCF", gffpath = "chr01/gff/", ) 
+chr01_genes <- splitting.data(chr01, subsites="gene")
 
+chr01_genes <- neutrality.stats(chr01_genes) # Calculate Tajima's D
+d <- cbind(chr01_genes@region.names, chr01_genes@Tajima.D) # Make TajD Table
+write.table(d, file="test_taj.txt") # Output TajD Table
+
+chr01_genes <- diversity.stats(chr01_genes, pi=TRUE) # Calculate Pi
+d <- cbind(chr01_genes@region.names, chr01_genes@Pi) # Make Pi Table
+write.table(d, file="test_pi.txt") # Output TajD Table
+
+chr01 <- detail.stats(chr01) # Doing CLR... but maybe should figure out how to do it by sliding window rather than by gene
+freq <- chr01@region.stats@minor.allele.freqs[[1]]
+freq.table <- list()
+freq.table[[1]] <- table(freq)
+## define the region of interest
+chr01_genes <- splitting.data(chr01, subsites="gene")
+## calculate CLR
+chr01_genes <- sweeps.stats(chr01_genes, freq.table=freq.table)
+chr01_genes@CLR
+d <- cbind(chr01_genes@region.names, chr01_genes@CLR) # Make CLR Table
+write.table(d, file="test_clr.txt") # Output CLR Table
+
+options(scipen=999) # to disable scientific notation
+chr01_window <- sliding.window.transform(chr01, width = 10000, jump = 1000, whole.data = TRUE, type=2)
+chr01_window <- sweeps.stats(chr01_window, freq.table=freq.table)
+chr01_window@CLR
+d <- cbind(chr01_window@region.names, chr01_window@CLR) # Make CLR Table
+write.table(d, file="test_clr.txt") # Output CLR Table
+```
+
+
+### MINOR ALLELE FREQUENCIES ###
+```{r}
+
+## Get MAF for whole genome
+onePop <- concatenate.regions(pv_data)
+onePop <- detail.stats(onePop, site.spectrum = TRUE)
+onePop@region.stats@minor.allele.freqs[[1]][1] # returns the MAF for the first SNP
+hist(onePop@region.stats@minor.allele.freqs[[1]]) 
+plot(density(onePop@region.stats@minor.allele.freqs[[1]]))
+
+
+
+
+
+
+
+
+## Get MAF for genes
+## Important for comparing Pv to Pf, since Pf only has good cov in coding regions
+onePop_genes <- splitting.data(onePop, subsites = "gene")
+onePop_genes <- detail.stats(onePop_genes, site.spectrum = TRUE)
+onePop_genes@region.stats@minor.allele.freqs[1] # gives us the MAFs for the first gene
+gene_mafs <- unlist(onePop_genes@region.stats@minor.allele.freqs) # gets rid of the list-of-lists structure
+plot(density(gene_mafs))
+
+
+num <- NULL
+
+for (i in 1:length(onePop_genes@region.stats@minor.allele.freqs)) {
+
+print i
+  
+}
+
+
+
+## Define populations: BB, KP, and OM
+indivs <- get.individuals(onePop)
+threePops <- set.populations(onePop, list(
+  indivs[[1]][1:69][grep("BB", indivs[[1]][1:length(indivs[[1]])])], 
+  indivs[[1]][1:69][grep("KP", indivs[[1]][1:length(indivs[[1]])])], 
+  indivs[[1]][1:69][grep("OM", indivs[[1]][1:length(indivs[[1]])])]))
+
+threePops <- detail.stats(threePops, site.spectrum = TRUE)
+threePops@region.stats@minor.allele.freqs[[1]][1]
+
+## What a pain, it's intercalating the values from the three populations
+```
