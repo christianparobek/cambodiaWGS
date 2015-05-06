@@ -117,66 +117,60 @@ pf_taj <- cbind(pf_genes@region.names, pf_genes@Tajima.D)
 pv_taj <- cbind(pv_genes@region.names, pv_genes@Tajima.D)
 
 ## Clean up the ortholist
-ortho_key <- ortho_key[!duplicated(ortho_key[,2]),] # remove duplicate Pf entries
-ortho_key <- ortho_key[!duplicated(ortho_key[,1]),] # remove duplicate Pv entries
+ortho_key <- ortho_key[!(duplicated(ortho_key[,2]) | duplicated(ortho_key[,2], fromLast = TRUE)),] # remove duplicate Pf entries # need the OR logic because duplicated() only marks second+ occurrence of duplicate
+ortho_key <- ortho_key[!(duplicated(ortho_key[,1]) | duplicated(ortho_key[,1], fromLast = TRUE)),] # remove duplicate Pv entries
 ortho_key <- ortho_key[ortho_key[,1] %in% pv_taj[,1],] # remove key-value pairs that are not on Pf chromosomes
 ortho_key <- ortho_key[ortho_key[,2] %in% pf_taj[,1],] # remove key-value pairs that are not on Pv chromosomes
 
-
-
-
-# only keep values that are in both orthokey and the tajima stats
+# Only keep values that are in both orthokey and the tajima stats
 pf_taj <- pf_taj[pf_taj[,1] %in% ortho_key[,2],]
 pv_taj <- pv_taj[pv_taj[,1] %in% ortho_key[,1],]
 
+## Sort the Pf list by ortho_key
+
+## A function to return a list of PV Tajima's D values
+pv.taj.getter <- function(index){
+  genenames <- as.character(ortho_key[,1])
+  taj <- pv_taj[str_detect(pv_taj[,1], genenames[index]),2]
+  return(taj)
+}
+
+## A function to return a list of PF Tajima's D values
+pf.taj.getter <- function(index){
+  genenames <- as.character(ortho_key[,2])
+  taj <- pf_taj[str_detect(pf_taj[,1], genenames[index]),2]
+  return(taj)
+}
+
+
+taj.getter <- function(ortho_key){
+  numcols <- ncol(ortho_key)
+  numrows <- nrow(ortho_key)
+  ortho_key$V3 <- NA
+  ortho_key$V4 <- NA
+  names(ortho_key) <- c("PvID", "PfID", "PvTajD", "PfTajD")
+  
+  # get the Pv ID-TajD combos
+  pvids <- as.character(ortho_key[,1])
+  
+  pfids <- as.character(ortho_key[,2])
+}
+
+testtajpv <- unlist(sapply(1:nrow(pv_taj), pv.taj.getter))
+testtajpf <- unlist(sapply(1:nrow(pv_taj), pf.taj.getter))
+
+order(testtajpv, decreasing=TRUE)[1:N]
+
+
+biglist <- unlist(lapply(1:nrow(pv_taj), function(index){length(testtajpv[index])}))
 
 
 
-ortho_key[,2] %in% pf_taj[,1]
+
+x <- cbind(
+  data.frame(pv_taj)[match(ortho_key[,1], pv_taj[,1]),],
+  data.frame(pf_taj)[match(ortho_key[,2], pf_taj[,1]),]
+)
 
 
-
-
-length(ortho_key[,1][!ortho_key[,1] %in% pv_taj[,1]]) ## IN ORTHO NOT IN TAJ  ## 2
-
-
-
-
-
-
-
-
-
-
-
-
-y[sort(order(y)[x])]
-
-
-
-
-pf_taj[pf_taj[,1] %in% ortho_key[,2],]
-pv_taj[pv_taj[,1] %in% ortho_key[,1],]
-
-
-## Figure out PF
-length(ortho_key[,2][ortho_key[,2] %in% pf_taj[,1]]) ## IN ORTHO AND IN TAJ ## 4276
-length(ortho_key[,2][pf_taj[,1] %in% ortho_key[,2]]) ## IN TAJ AND IN ORTHO ## 4276
-length(ortho_key[,2][!ortho_key[,2] %in% pf_taj[,1]]) ## IN ORTHO NOT IN TAJ ## 1
-length(ortho_key[,2][!pf_taj[,1] %in% ortho_key[,2]]) ## IN TAJ NOT IN ORTHO ## 1399
-length(pf_genes@region.names)
-
-
-in_orth_and_in_taj <- ortho_key[,2][ortho_key[,2] %in% pf_taj[,1]]
-in_orth_not_in_taj <- ortho_key[,2][!ortho_key[,2] %in% pf_taj[,1]]
-in_taj_not_in_orth <- ortho_key[,2][!pf_taj[,1] %in% ortho_key[,2]]
-
-
-
-## Figure out PV
-length(ortho_key[,1][ortho_key[,1] %in% pv_taj[,1]]) ## IN ORTHO AND IN TAJ ## 4275
-length(ortho_key[,1][pv_taj[,1] %in% ortho_key[,1]]) ## IN TAJ AND IN ORTHO ## 4275
-length(ortho_key[,1][!ortho_key[,1] %in% pv_taj[,1]]) ## IN ORTHO NOT IN TAJ  ## 2
-length(ortho_key[,1][!pv_taj[,1] %in% ortho_key[,1]]) ## IN TAJ NOT IN ORTHO  ## 974
-length(pv_genes@region.names)
 
