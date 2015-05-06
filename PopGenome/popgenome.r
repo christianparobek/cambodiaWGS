@@ -103,7 +103,6 @@ pf_genes <- get.pf.genes(pf)
 pv_genes <- get.pv.genes(pv)
 
 
-
 #####################################################
 ################ Neutrality Stats ###################
 #####################################################
@@ -122,55 +121,68 @@ ortho_key <- ortho_key[!(duplicated(ortho_key[,1]) | duplicated(ortho_key[,1], f
 ortho_key <- ortho_key[ortho_key[,1] %in% pv_taj[,1],] # remove key-value pairs that are not on Pf chromosomes
 ortho_key <- ortho_key[ortho_key[,2] %in% pf_taj[,1],] # remove key-value pairs that are not on Pv chromosomes
 
-# Only keep values that are in both orthokey and the tajima stats
+## Only keep values that are in both ortho_key and the TajD stats
 pf_taj <- pf_taj[pf_taj[,1] %in% ortho_key[,2],]
 pv_taj <- pv_taj[pv_taj[,1] %in% ortho_key[,1],]
 
-## Sort the Pf list by ortho_key
-
-## A function to return a list of PV Tajima's D values
-pv.taj.getter <- function(index){
-  genenames <- as.character(ortho_key[,1])
-  taj <- pv_taj[str_detect(pv_taj[,1], genenames[index]),2]
-  return(taj)
-}
-
-## A function to return a list of PF Tajima's D values
-pf.taj.getter <- function(index){
-  genenames <- as.character(ortho_key[,2])
-  taj <- pf_taj[str_detect(pf_taj[,1], genenames[index]),2]
-  return(taj)
-}
-
-
-taj.getter <- function(ortho_key){
-  numcols <- ncol(ortho_key)
-  numrows <- nrow(ortho_key)
-  ortho_key$V3 <- NA
-  ortho_key$V4 <- NA
-  names(ortho_key) <- c("PvID", "PfID", "PvTajD", "PfTajD")
-  
-  # get the Pv ID-TajD combos
-  pvids <- as.character(ortho_key[,1])
-  
-  pfids <- as.character(ortho_key[,2])
-}
-
-testtajpv <- unlist(sapply(1:nrow(pv_taj), pv.taj.getter))
-testtajpf <- unlist(sapply(1:nrow(pv_taj), pf.taj.getter))
-
-order(testtajpv, decreasing=TRUE)[1:N]
-
-
-biglist <- unlist(lapply(1:nrow(pv_taj), function(index){length(testtajpv[index])}))
-
-
-
-
-x <- cbind(
+## Order and combine the Pv and Pf TajD values
+pvpf <- cbind(
   data.frame(pv_taj)[match(ortho_key[,1], pv_taj[,1]),],
   data.frame(pf_taj)[match(ortho_key[,2], pf_taj[,1]),]
 )
+names(pvpf) <- c("PvID", "PvTajD", "PfID", "PfTajD") #name it
+
+## Compare Pv to Pf values
+pvpf$Diff <- (as.numeric(as.character(pvpf$PvTajD)) - as.numeric(as.character(pvpf$PfTajD))) # have to convert factors -> chars -> numeric
+pvpf_ord <- pvpf[with(pvpf, order(Diff)), ]
+pvpf_ord_omit <- na.omit(pvpf_ord)
+pvpf_ord_omit$Counter <- 1:nrow(pvpf_ord_omit)
 
 
+################################
+## Plot the differences graph ##
+################################
+par(xpd=NA, mgp = c(3, 1, 0))
+plot(pvpf_ord_omit$Diff ~ pvpf_ord_omit$Counter, 
+     axes=FALSE, 
+     xlab="Orthologous Gene Pairs", 
+     ylab=expression(paste(italic("P. vivax"), bold(" D") - italic("P. falciparum"), bold(" D"))),
+     ylim=c(-5,4),
+     pch=19,
+     col="grey25",
+     main=expression(bold(paste(Delta, " Tajima's D"))))
+# Add axes
+axis(1, at=c(0,1800), line=2.5)
+axis(2, at=c(-4, 0, 4), line=0.5, las=2)
+## Color the highest and lowest points
+points(pvpf_ord_omit$Diff[pvpf_ord_omit$Diff > 2] ~ pvpf_ord_omit$Counter[pvpf_ord_omit$Diff > 2], pch=19, col="red")
+points(pvpf_ord_omit$Diff[pvpf_ord_omit$Diff < -4] ~ pvpf_ord_omit$Counter[pvpf_ord_omit$Diff < -4], pch=19, col="red")
+# Add the polygons at the bottom
+polygon(c(0,1800,0), c(-5,-5,-6.5), col="grey30", border="grey30")
+polygon(c(0,1800,1800), c(-6.7,-5.2,-6.7), col="grey", border="grey")
+# Add text to the polygons at the bottom
+text(460, -5.45, expression(paste(italic("P. falciparum"), " Tajima's D")), col="white", cex=0.75)
+text(1425, -6.4, expression(paste(italic("P. vivax"), " Tajima's D")), col="black", cex=0.75)
+
+###############################
+## Plot the comparison graph ##
+###############################
+par(mgp = c(2, 1, 0))
+plot(density(pv_genes@Tajima.D[,1], na.rm=TRUE), 
+     xlim=c(-3,3), 
+     lty=2, 
+     lwd=2, 
+     xlab="Tajima's D",
+     main="Genome-wide Tajima's D",
+     ylab="Kernel Density", 
+     axes=FALSE)
+lines(density(pf_genes@Tajima.D[,1], na.rm=TRUE), lwd=2)
+legend(0.3, 0.5, 
+       legend=c(expression(italic("P. vivax")), expression(italic("P. falciparum"))),
+       lty=c(2,1),
+       lwd=3,
+       box.lwd=0,
+       cex=1.25)
+axis(1, at=c(-3,-2,-1,0,1,2,3), labels=c("-3","","-1","","1","","3"))
+axis(2, at=c(0,0.8), labels=c("",""), las=2)
 
