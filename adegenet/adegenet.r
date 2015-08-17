@@ -12,22 +12,16 @@
 
 library(adegenet)
 library(stringr)
-
+library(pegas)
 
 #####################################################
 ################# Define Functions ##################
 #####################################################
 
-## Function to create a genlight object from
-## STRUCTURE file. VCF->STR using PGDSpider2
+## Function to create genlight from VCF.
 genlight.maker <- function(infile) {
-  table <- read.table(infile, skip=1, na.strings="-9") # read in data, missing is "-9" in str format
-  sorted <- table[order(table[,1]),] # sort
-  inds <- sorted$V1 # grab the indiv names
-  pops <- sorted$V2 # grab the pop names
-  sorted <- sorted[-c(1,2)] # remove ind and pop columns from data frame
-  genlight <- new("genlight", sorted) # convert data frame into genlight object
-  indNames(genlight) <- inds # add back individual information
+  loci <- read.vcf(infile)
+  genlight <- new("genlight", loci) # convert data frame into genlight object
   ploidy(genlight) <- 1 # add back population information
   return(genlight)
 }
