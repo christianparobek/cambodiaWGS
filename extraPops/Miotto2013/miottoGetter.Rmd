@@ -1,0 +1,79 @@
+---
+title: "miottoGetter"
+author: "Christian Parobek"
+date: "09/11/2015"
+output: html_document
+---
+
+For the Miotto genomes, I downloaded the SRA files to Kure and tried to convert to FASTQ, but after much effort I gave up. Now, discovered how to download the FASTQs from EBI/ENA using Aspera (`ascp`). First, I need to decide which ENA Sample Accessions (ERS###) were included in the 2013 paper that identified the KH groups. Accessions included in the paper are [here](http://www.nature.com/ng/journal/v45/n6/extref/ng.2624-S1.pdf). The ENA/EBI key for downloading FASTQs is [here](http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession=ERP000190&result=read_run&fields=study_accession,secondary_study_accession,sample_accession,secondary_sample_accession,experiment_accession,run_accession,tax_id,scientific_name,instrument_model,library_layout,fastq_ftp,submitted_ftp,cram_index_ftp&download=txt), saved as `ERP000190.txt`. Initially going to try to download all data onto my 3TB DATA drive. If that's not, I'll download to Sauron instead.
+
+Miotto did his analysis on 825 (biological) samples, and several of these have multiple sequencing runs per sample, giving us a total of 915 "samples" (number of libraries I think?). Downloaded the list of files (PDF), copied the ERS###s and transformed in `gedit` to get clean list of names, saved as `allMiottoERS.txt`. 
+
+First, read in the 915 ERS numbers and big data frame of ENA/EBI pointers
+```{r}
+## read in ENA/EBI metadata (~6000 lines)
+ERP <- read.table("ERP000190.txt", header = TRUE)
+dim(ERP)
+## read in the 915 ERS### from the NatGen paper
+ERS <- read.table("allMiottoERS.txt", header = TRUE)
+dim(ERS)
+```
+
+Of the 915 ERS numbers Miotto lists in his supp materials, 73 of Miotto's accessions aren't on ENA/EBI! I double-checked some of thsee at ENA/EBI and it's true, they're not in the database.These are them:
+```{r}
+ERS[!ERS$secondary_sample_accession %in% ERP$secondary_sample_accession,]
+length(ERS[!ERS$secondary_sample_accession %in% ERP$secondary_sample_accession,])
+```
+
+So, only 842 of Miotto's ERS numbers are actually available on ENA/EBI:
+```{r}
+ERS[ERS$secondary_sample_accession %in% ERP$secondary_sample_accession,]
+length(ERS[ERS$secondary_sample_accession %in% ERP$secondary_sample_accession,])
+```
+
+OK, well then. So, take only ERP lines that have a desired ERS number:
+```{r}
+merged <- merge(ERS, ERP, by = "secondary_sample_accession")
+dim(merged)
+```
+
+There are 9 single-end libraries which I want to remove for convenience sake. This removes another 3 ERS### for a total of 839 ERS### that we will download from ENA/EBI:
+```{r}
+paired <- merged[merged$library_layout == "PAIRED",]
+dim(paired)
+```
+
+Remember though that some of these ERS### have multiple runs. OK, do we want to download all Miotto genomes, just the ones from Asia, or just the ones from Cambodia? Start with just the ones from Asia to save space and time. Fortunately, Derrick provided a key for us:
+
+```{r, engine = 'bash'}
+## grab the Cam/Thai/Viet lines, replace commas with newlines, grab just the ERS###
+grep "Cambodia\|Thailand\|Vietnam" thousandPf_list_fromDerrick.csv | sed 's/\,/\n/g' | grep ERS > asiaERS.txt
+## add a header for subsetting in R
+echo -e "secondary_sample_accession\n$(cat asiaERS.txt)" > asiaERS.txt
+```
+
+Now, read that file into `R` and get just the relevant lines / urls:
+```{r}
+## read in file
+asiaERS <- read.table("asiaERS.txt", header = TRUE)
+## check to see how many asian ERS### are missing from metadata file
+nrow(asiaERS) - sum(as.numeric(asiaERS$secondary_sample_accession %in% paired$secondary_sample_accession))
+## get just the asian metadata lines for ERS numbers that exist at ENA/EBI
+asia <- merge(paired, asiaERS, by = "secondary_sample_accession")
+```
+
+That leaves us with a total of `r sum(as.numeric(asiaERS$secondary_sample_accession %in% paired$secondary_sample_accession))` Asian samples and `r nrow(asia)` sequencing runs from these samples.
+
+Finally, write an output file of all pointer metadata:
+```{r}
+## write out all ENA/EBI metadata
+write.table(asia, file = "miottoAsiaMetadata.txt", quote = FALSE, sep = "\t")
+## write out just the column with the pointers
+write.table(asia$fastq_ftp, file = "miottoAsiaPointers_temp", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+```
+
+```{r, engine = 'bash'}
+## use sed to replace ; with \n in our url file
+sed 's/\;/\n/' miottoAsiaPointers_temp | sed 's/ftp.sra.ebi.ac.uk//' > miottoAsiaPointers.txt
+rm miottoAsiaPointers_temp
+```
