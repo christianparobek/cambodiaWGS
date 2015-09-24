@@ -14,43 +14,45 @@ import sys
 sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/PyVCF-0.6.7-py2.6-linux-x86_64.egg')
 sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/PyVCF-0.6.7-py2.6-linux-x86_64.egg/vcf')
 sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/Counter-1.0.0-py2.6.egg')
-
 import Bio
 from Bio import SeqIO
-
 import vcf
-
 
 
 ##################################
 ####### IMPORT or PARSE CMD ######
 ##################################
 
-## import pv vcf
-vcf_reader = vcf.Reader(open('/proj/julianog/users/ChristianP/cambodiaWGS/pv/variants/our_goods_UG.pass.vcf.gz', 'r'))
+REFERENCE = sys.argv[1]
+INFILE = sys.argv[2]
+OUTFILE = sys.argv[3]
 
-## import pv chrs
-pvDict = SeqIO.to_dict(SeqIO.parse("/proj/julianog/refs/PvSAL1_v13.0/PlasmoDB-13.0_PvivaxSal1_Genome.fasta", "fasta"))
+## import reference
+pvDict = SeqIO.to_dict(SeqIO.parse(REFERENCE, "fasta"))
+	# '/proj/julianog/refs/PvSAL1_v13.0/PlasmoDB-13.0_PvivaxSal1_Genome.fasta'
+
+## import VCF
+vcf_reader = vcf.Reader(open(INFILE, 'r'))
+	# '/proj/julianog/users/ChristianP/cambodiaWGS/pv/variants/our_goods_UG.pass.vcf.gz'
 
 ## out file
-out_handle = open("your_out_file.dadi", "w")
+out_handle = open(OUTFILE, "w")
+	# 'your_out_file.dadi'
 
 ##################################
 ########### PARSE VCF ############
 ##################################
 
 # Declare some lists that will be used later on
-sites = []
-chrNames = []
-wt = []
-mut = []
+sites = [] # position in chromosome
+chrNames = [] # chromosome name
+wt = [] # reference base
+mut = [] # alternate base
 a1_count = []
 a2_count = []
 
-#new_vcf_reader = vcf_reader.fetch('Pv_Sal1_chr01', 0, 10000)
+# For each line/record in VCF file
 for record in vcf_reader:
-#	print record
-	
 	sites.append(record.POS)
 	chrNames.append(record.CHROM)
 	wt.append(record.REF)
@@ -66,27 +68,21 @@ for record in vcf_reader:
 	a2_count.append(sum(geno_count)) # sum the alternates
 
 
-
 ##################################
-####### EXTRACT SEQUENCE #########
+####### PRINT DADI FORMAT ########
 ##################################
 
-## Test only
-#sites = [3,4,5,6,7,8,9]
-#chrNames = ["Pv_Sal1_chr02","Pv_Sal1_chr02","Pv_Sal1_chr02","Pv_Sal1_chr02","Pv_Sal1_chr02","Pv_Sal1_chr02"]
-
-
-out_handle = open("your_out_file.dadi", "w")
+#out_handle = open("your_out_file.dadi", "w")
 
 # Define Variables
-sp = 'Pvivax'
+sp = 'PlasmodiumSpp'
 og = 'Outgroup'
 a1 = 'Allele1'
 p1 = "Pop1"
 a2 = 'Allele2'
 ch = "Chrom"
 po = "Position"
-og_value = ''-'' ## NEED THIS TO OUTPUT '-' IN THE FINAL FILE!! WILL THIS WORK????
+og_value = '\'-\'' ## Need this ti output '-' in the final file
 
 # print the header
 out_handle.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" % (sp, og, a1, p1, a2, p1, ch, po))
@@ -95,7 +91,6 @@ out_handle.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" % (sp, og, a1, p1, a2, p1, c
 ## Extract base and -1/+1 base
 for idx, val in enumerate(chrNames):
 	out_handle.write("%s\t%s\t%s\t%d\t%s\t%d\t%s\t%d\n" % (pvDict[val].seq[sites[idx]-2:sites[idx]+1], og_value, wt[idx], a1_count[idx], mut[idx], a2_count[idx], chrNames[idx], sites[idx]))
-
 
 out_handle.close()
 
