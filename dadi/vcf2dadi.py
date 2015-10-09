@@ -29,9 +29,9 @@ parser.add_argument("--ref", help="path to reference genome")
 parser.add_argument("--vcf1", help="path to first VCF")
 parser.add_argument("--vcf2", help="path to second VCF")
 parser.add_argument("--vcf3", help="path to third VCF")
-parser.add_argument("--popName1", help="name for pop 1", default="Pop1")
-parser.add_argument("--popName2", help="name for pop 2", default="Pop2")
-parser.add_argument("--popName3", help="name for pop 3", default="Pop3")
+parser.add_argument("--pop1name", help="name for pop 1", default="Pop1")
+parser.add_argument("--pop2name", help="name for pop 2", default="Pop2")
+parser.add_argument("--pop3name", help="name for pop 3", default="Pop3")
 parser.add_argument("--out", help="define an output file")
 args = parser.parse_args()
 
@@ -73,9 +73,9 @@ sp = 'PlasmodiumSpp'
 og = 'Outgroup'
 a1 = 'Allele1'
 a2 = 'Allele2'
-p1 = args.popName1
-p2 = args.popName2
-p3 = args.popName3
+p1 = args.pop1name
+p2 = args.pop2name
+p3 = args.pop3name
 ch = 'Chrom'
 po = 'Position'
 og_value = '\'-\'' ## Need this ti output '-' in the final file
