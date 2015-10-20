@@ -16,7 +16,7 @@
 ###################################################
 
 library(stringr)
-
+library(boot)
 
 ###################################################
 ################ DEFINE FUNCTIONS #################
@@ -79,30 +79,53 @@ fwsCalc <- function(dataset) {
   
 }
 
+## Given a df, subsampling size, reps, and a function, bootstrap
+bootstrapper <- function(data_frame, num_samples, num_reps, fws_function){
+  table <- NULL
+  for (i in 1:num_reps) {
+    rep <- data_frame[sample(nrow(data_frame), num_samples, replace = TRUE), ]
+    table <- rbind(table, fws_function(rep))   
+  }
+  return(table)
+} 
 
 ###################################################
 ################## READ IN DATA ###################
 ###################################################
 
 ## READ IN THE Pf AND Pv MULTIVCFs
-pv <- read.table("our_goods_pv.pass.vcf", comment.char="#", header=TRUE)
-pf <- read.table("our_goods_pf.pass.vcf", comment.char="#", header=TRUE)
+pv <- read.table("our_goods_pv.pass.vcf.gz", comment.char="#", header=TRUE)
+pf <- read.table("our_goods_pf.pass.vcf.gz", comment.char="#", header=TRUE)
 
 
 ###################################################
 ################# CALCULATE FWS ###################
 ###################################################
 
-## Do the calculations
-pv_fws <- fwsCalc(pv)
-pf_fws <- fwsCalc(pf)
+## calculate point estimate and bootstrap for Pf
+pf_point_estimate <- fwsCalc(pf)
+pf_bootstraps <- bootstrapper(pf, 5000, 1000, fwsCalc)
+## get min and max for each column (sample) of pf data
+pf_min <- apply(pf_bootstraps, 2, min)
+pf_max <- apply(pf_bootstraps, 2, max)
+## get order of pf point estimates
+pf_order <- order(pf_point_estimate)
 
+## calculate point estimate and bootstrap for Pv
+pv_point_estimate <- fwsCalc(pv)
+pv_bootstraps <- bootstrapper(pv, 5000, 1000, fwsCalc)
+## get min and max for each column (sample) of pv data
+pv_min <- apply(pv_bootstraps, 2, min)
+pv_max <- apply(pv_bootstraps, 2, max)
+## get order of pv point estimates
+pv_order <- order(pv_point_estimate)
 
 ###################################################
 ################### PLOT FWS ######################
 ###################################################
 
-plot(sort(pv_fws),
+#svg("fws.svg", width = 7.5, height = 5)
+plot(pf_point_estimate,
      pch=19,
      col="grey25",
      xlim=c(0,75),
@@ -110,25 +133,30 @@ plot(sort(pv_fws),
      xlab="",
      ylab="",
      axes=FALSE,
-     type="n",
-     main="Multiplicity of Infection")
-points(sort(pf_fws),
+     type="n")
+segments(1:length(pf_max), pf_max[pf_order], 
+         1:length(pf_min), pf_min[pf_order],
+         col="grey", lwd=2)
+segments(1:length(pv_max), pv_max[pv_order], 
+         1:length(pv_min), pv_min[pv_order],
+         col="grey25", lwd=2)
+points(sort(pf_point_estimate),
        pch=19,
        col="grey")
-points(sort(pv_fws),
+points(sort(pv_point_estimate),
        pch=19,
        col="grey25")
 axis(1, at=c(0,25,50,75))
 axis(2, at=c(0.2,0.6,1.0), las=2)
 segments(0, 0.95, 75, 0.95, lty=2, col="red", lwd=2)
 legend(35, 0.6,
-       legend=c(expression(italic("P. vivax")), expression(italic("P. falciparum")), expression(paste("F"["WS"] == "0.95"))), 
+       legend=c(expression(italic("P. vivax")), expression(italic("P. falciparum")), expression(paste(italic("F")["WS"] == "0.95"))), 
        pch=c(19,19,NA),
        lty=c(NA,NA,2),
-       col=c("grey", "grey25","red"),
+       col=c("grey25", "grey","red"),
        box.lwd=0,
        lwd=2,
        cex=1.25)
 mtext("Isolates", side=1, line=2)
-mtext(expression("F"["WS"]), side=2, line=2.5)
-
+mtext(expression(italic("F")["WS"]), side=2, line=2.5)
+#dev.off()
