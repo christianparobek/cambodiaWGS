@@ -52,6 +52,17 @@ plot.boot <- function(bootstrap_files, nbins, binsize, shadecolor) {
   polygon(c(xline, rev(xline)), c(upper, rev(lower)), col = shadecolor, border = NA)
 }
 
+# Function selects biggest and smallest bootstrap rep. Use if entire bootstrap dataset is too big.
+boot.slimmer <- function(bootstrap_files) {
+  
+  bootvalues <- unlist(lapply(bootstrap_files, function(x) mean(x$R.2, na.rm = TRUE)))
+  the_max <- which.max(bootvalues)
+  the_min <- which.min(bootvalues)
+  
+  bootstrap_slimmed <- list(bootstrap_files[[the_max]], bootstrap_files[[the_min]])
+  return(bootstrap_slimmed)
+} 
+
 # Accessory function to plot.boot - returns a vector of r2 values
 boot.outline <- function(LDdf, nbins, binsize) {
   
@@ -73,10 +84,12 @@ boot.outline <- function(LDdf, nbins, binsize) {
 ############ INPUT DATA ############
 ####################################
 
-ld1 <- read.table("pointestimates/ld/cp1.ld.1-20000.hap.ld", header = TRUE)
-ld2 <- read.table("pointestimates/ld/cp2.ld.1-20000.hap.ld", header = TRUE)
-ld3 <- read.table("pointestimates/ld/cp3.ld.1-20000.hap.ld", header = TRUE)
-ld4 <- read.table("pointestimates/ld/cp4.ld.1-20000.hap.ld", header = TRUE)
+ld1 <- read.table("pointestimates/ld/cp1.ld.1-200000.hap.ld", header = TRUE)
+ld2 <- read.table("pointestimates/ld/cp2.ld.1-200000.hap.ld", header = TRUE)
+ld3 <- read.table("pointestimates/ld/cp3.ld.1-200000.hap.ld", header = TRUE)
+ld4 <- read.table("pointestimates/ld/cp4.ld.1-200000.hap.ld", header = TRUE)
+
+ldpv <- read.table("pv-10000.hap.ld", header = TRUE)
 
 # optional to convert NaN to 1
 ld1$R.2[is.nan(ld1$R.2)] <- 1
@@ -95,21 +108,25 @@ bootstrap_files <- lapply(bootstrap_names, read.table, header = TRUE)
 ## Setup plot coordinates
 plot(ld2$POS2-ld2$POS1, ld2$R.2, 
      type = "n", xlim = c(0,200000), axes = FALSE, 
-     xlab = "Coordinate Distance between SNPs", ylab = expression(r^2))
+     xlab = "Pairwise Coordinate Distance", ylab = expression(italic(r^2)))
 axis(1)
 axis(2, las = 2)
 
+## Slim bootstraps
+slimboot <- boot.slimmer(bootstrap_files)
+remove(bootstrap_files)
+
 ## Plot bootstraps
-plot.boot(bootstrap_files, 200, 1000, "lightgray") # plot shaded outline of max and min
-#mapply(plot.bin, bootstrap_files, 100, 200, "gray") # plot individuals
+plot.boot(slimboot, 200, 1000, "lightgray") # plot shaded outline of max and min
 
 ## Plot pointestimates
-plot.bin(ld1, 200, 1000, "red")
-plot.bin(ld2, 200, 1000, "red")
+plot.bin(ld1, 200, 1000, "cadetblue1")
+plot.bin(ld2, 200, 1000, "firebrick3")
 #plot.bin(ld3, 200, 1000, "red")
-plot.bin(ld4, 200, 1000, "red")
+plot.bin(ld4, 200, 1000, "goldenrod2")
 
-
-
-mapply(mean, bootstrap_files)
-
+legend(140000, 0.6, 
+       legend = c("CP1", "CP2", "CP4", "Bootstraps"), 
+       col = c("cadetblue1", "firebrick3", "goldenrod2", "gray"), 
+       lty=c(1, 1, 1, 1),
+       lwd = 3)
