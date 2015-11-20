@@ -13,6 +13,7 @@
 library(adegenet)
 library(stringr)
 library(pegas)
+library(abind)
 
 
 #####################################################
@@ -30,17 +31,15 @@ genlight.maker <- function(infile) {
 }
 
 ## Function to assign samples to pops
-## based on a list of their names
+## based on their CP group number
 pop.definer <- function(ind_names) {
   library(stringr)
-  kp <- as.numeric(str_detect(ind_names, "BB"))*2 # assign KP pop number
-  bb <- as.numeric(str_detect(ind_names, "KP"))*2# assign BB pop number
-  om <- as.numeric(str_detect(ind_names, "OM"))*2 # assign OM pop number
-  sn <- as.numeric(str_detect(ind_names, "SN"))*2 # assign SN pop number
-  tb <- as.numeric(str_detect(ind_names, "TB"))*2 # assign TB pop number
-  srr <- as.numeric(str_detect(ind_names, "SRR"))*1 # assign SRR pop number
-  err <- as.numeric(str_detect(ind_names, "ERR"))*1 # assign ERR pop number
-  pops <- kp + bb + om + sn + tb + srr + err
+  cp1 <- as.numeric(str_detect(ind_names, "OM352|SN003|SN019|SN032|SN043|SN060|SN066|SN072|SN082|SN083|SN093|SN099|KP054|KP065"))*1 # assign KP pop number
+  cp2 <- as.numeric(str_detect(ind_names, "KP001|KP004|BB085|KP059|KP073|SN076|SN079|SN091|SN103|SN109|SN078|KP027|KP030|KP062|SN064|SN097|SN107|SN111|BB084|BB059|BB080"))*2# assign BB pop number
+  cp3 <- as.numeric(str_detect(ind_names, "BB052|BB082|BB068|BB069|SN022|SN035|SN038|SN039|SN044|SN048|SN052|SN057|SN058|SN061|SN084|SN085|SN092|SN095|SN105|SN117"))*3 # assign OM pop number
+  cp4 <- as.numeric(str_detect(ind_names, "SN015|SN016|SN030|SN031|SN042|SN046|SN047|SN062|SN063|SN071|SN074|SN075|SN077|SN081|SN086|SN096|SN098|SN101|SN102|SN106|SN108|SN114|SN116"))*4 # assign SN pop number
+  srr <- as.numeric(str_detect(ind_names, "SRR|ERR|TB"))*5 # assign SRR and ERR pop number
+  pops <- cp1 + cp2 + cp3 + cp4 + srr
   return(pops)
 }
 
@@ -54,12 +53,81 @@ pca.plotter <- function(pca, pops, x, y) {
        ylab=paste("PC", y, sep = ""),
   )
   axis(1)
-  axis(2)
+  axis(2, las = 2)
+}
+
+## Calculate the allele frequencies by SNP, given a VCF
+af.calc <- function(vcf) {
+  
+  data <- vcf[-c(1:9)] # get rid of first nine rows
+  
+  altCT <- as.data.frame(sapply(data, function(x) str_extract(x, "[0123456789]:")))
+  altCT <- sapply(altCT, function(x) str_extract(x, "[0123456789]+")) # clean out extra chars
+  altCT <- apply(altCT, c(1,2), as.numeric) # convert to numeric matrix
+  
+  vector <- apply(altCT, 1, mean)
+  
+  return(vector)
+} ## 0 is ref, 1 is alt for VCF
+
+
+###################################################
+############# LIFTOVER - READ IN DATA #############
+###################################################
+
+## READ IN THE Pf AND Pv MULTIVCFs
+cp1 <- read.table("liftover/vcfs/cp1_intersected.vcf", header=FALSE)
+cp2 <- read.table("liftover/vcfs/cp2_intersected.vcf", header=FALSE)
+cp3 <- read.table("liftover/vcfs/cp3_intersected.vcf", header=FALSE)
+cp4 <- read.table("liftover/vcfs/cp4_intersected.vcf", header=FALSE)
+
+miotto_af <- read.table("liftover/beds/liftover_intersected.bed", header = FALSE)
+
+
+###################################################
+############ LIFTOVER - BUILD MATRIX ##############
+###################################################
+
+af_matrix <- rbind(af.calc(cp1), 
+                   af.calc(cp2), 
+                   af.calc(cp3), 
+                   af.calc(cp4),
+                   miotto_af$V5,
+                   miotto_af$V6,
+                   miotto_af$V7,
+                   miotto_af$V8,
+                   miotto_af$V9)
+
+###################################################
+######### LIFTOVER - GET POINT ESTIMATE ###########
+###################################################
+
+dist(af_matrix)
+
+
+###################################################
+############## LIFTOVER - BOOTSTRAP ###############
+###################################################
+
+nboot <- 1000
+ncols <- 100 #ncol(af_matrix)
+counter <- 0
+denominator <- 0
+boots <- NULL
+
+for (i in 1:nboot) {
+  boot_cols <- sample(1:ncol(af_matrix), size = ncols, replace = TRUE)
+  mat <- as.matrix(dist(af_matrix[, boot_cols]))
+  boots <- abind(boots, mat, along = 3)
+  mat[mat == 0] <- NA # replace the zeros (diagonals) with NA
+  mat[1,2] <- NA # replace the 
+  denominator <- denominator + sum(as.numeric((mat[9,2] <= mat[,2])), na.rm = TRUE)
+  counter <- counter + sum(as.numeric(!(mat[9,2] <= mat[,2])), na.rm = TRUE)
 }
 
 
 ###############################################
-################# PROCESS PCA #################
+########## PCA - READ & PROCESS DATA ##########
 ###############################################
 
 ## read in PF data
@@ -74,23 +142,33 @@ pf_pca_jit <- as.data.frame(jitter(pf_pca$scores, factor=100))
 sansGambia <- pf_pca_jit[!pf_pca_jit$PC1 > 18,]
 sansGambiaCol <- pf_pops[!pf_pca_jit$PC1 > 18]
 
+# replace colors
+sansGambiaCol[sansGambiaCol == 1] <- "deepskyblue"
+sansGambiaCol[sansGambiaCol == 2] <- "brown1"
+sansGambiaCol[sansGambiaCol == 3] <- "darkolivegreen3"
+sansGambiaCol[sansGambiaCol == 4] <- "darkgoldenrod1"
+sansGambiaCol[sansGambiaCol == 5] <- "gray"
+
 
 ######################################################
 ################# PLOT PCA & BOXPLOT #################
 ######################################################
 
-par(mfrow = c(1,2))
+svg("cp_kh.svg", width = 11, height = 5.5)
+par(mfrow = c(1,2), mar = c(5,5.5,4,2))
 
 # plot the pca
 pca.plotter(sansGambia, sansGambiaCol, 1, 3)
-text(c(-12, -18, -3, -3), c(21, -8, -7, 4), labels = c("CP4", "CP3", "CP2", "CP1"))
-mtext("A", 2, las = 2, cex = 2.5, at = 21, line = 3)
+text(c(-12, -18, -5, 2), c(21, -8, 2, -7), labels = c("CP4", "CP3", "CP2", "CP1"), col = c("darkgoldenrod1", "darkolivegreen3", "brown1", "deepskyblue"))
+mtext("A", 2, las = 2, cex = 2, at = 21, line = 3)
 
 # plot the boxplot
 boxplot(boots[9,2,], boots[5,2,], boots[6,2,], boots[7,2,], boots[8,2,], axes = FALSE, ylab = "CP2 vs. KH Group\n(Euclidean Distance)", xlab = "KH Groups")
 axis(1, at = 1:5, labels = c("KHA", "KH1", "KH2", "KH3", "KH4"))
-axis(2)
-mtext("B", 2, las = 2, cex = 2.5, at = 5.6, line = 3)
+axis(2, las = 2)
+mtext("B", 2, las = 2, cex = 2, at = 5.6, line = 3)
+
+dev.off()
 
 
 
@@ -101,6 +179,11 @@ mtext("B", 2, las = 2, cex = 2.5, at = 5.6, line = 3)
 
 
 
+
+
+######################################################
+################ AN ATTEMPT AT GGPLOT ################
+######################################################
 
 ### ggPlot fail
 
