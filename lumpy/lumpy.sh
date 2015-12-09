@@ -4,8 +4,7 @@
 
 bamdir=/proj/julianog/users/ChristianP/cambodiaWGS/pv/aln
 scripts=/proj/julianog/src/lumpy-sv/scripts
-#samp=BB012
-samp=KP017.merged
+samp=BB012
 ref=/proj/julianog/refs/PvSAL1_v13.0/PlasmoDB-13.0_PvivaxSal1_Genome.fasta
 readdir=/proj/julianog/users/ChristianP/cambodiaWGS/pv/symlinks/
 
@@ -55,66 +54,97 @@ readdir=/proj/julianog/users/ChristianP/cambodiaWGS/pv/symlinks/
 ##samtools view -H $bamdir/$samp.merged.bam | grep -v "@PG" | samtools reheader - $bamdir/$samp.merged.bam > $samp.reheadered.bam
 #samtools index $samp.reheadered.bam
 
+#######################################
+## EXTRACT THE SPLIT-READ ALIGNMENTS ##
+#######################################
 
-#bwa mem $ref /proj/julianog/sequence_reads/beckman_seq_backups/2014_11_10_BB_KP_WGS_Libraries/Fastq/BB012-BiooBarcode_31_CACGAT_R1.fastq.gz /proj/julianog/sequence_reads/beckman_seq_backups/2014_11_10_BB_KP_WGS_Libraries/Fastq/BB012-BiooBarcode_31_CACGAT_R2.fastq.gz \
-#		-R "@RG\tID:bwa\tPL:illumina\tLB:sample" \
-#		-M -t 4 -v 2 -A 2 -L 15 -U 9 -T 75 \
-#		-k 19 -w 100 -d 100 -r 1.5 -c 10000 \
-#		-B 4 -O 6 -E 1 > BB012.sam
+#module remove python
+#addpython2.7.6
+#for samp in `cat ../pv/names/our_goods_5x@80%.txt`
+#do
 
-#samtools sort -o BB012.bam
+#samtools view -h aln/$samp.bam \
+#	| $scripts/extractSplitReads_BwaMem -i stdin \
+#	| samtools view -Sb - \
+#	> aln/$samp.splitters.bam
 
+#done
 
-# Align it
-bwa mem $ref $readdir/BB012_2014-11-10_R1.fastq.gz $readdir/BB012_2014-11-10_R2.fastq.gz -t 4 -R "@RG\tID:id\tSM:sample\tLB:lib"|\
-	samtools view -Sb - \
-	> BB012.bam
+#######################################
+###### SORT THE ALIGNMENTS AGAIN ######
+#######################################
 
-# Extract the discordant paired-end alignments
-samtools view -b -F 1294 $samp.bam > $samp.discordants.unsorted.bam
+#for samp in `cat ../pv/names/our_goods_5x@80%.txt`
+#do
 
-# Extract the split-read alignments
-module remove python
-addpython2.7.6
-samtools view -h $samp.bam \
-	| $scripts/extractSplitReads_BwaMem -i stdin | more \
-	| samtools view -Sb - \
-	> $samp.splitters.unsorted.bam
+#echo $samp
+#samtools sort aln/$samp.discordants.bam aln/$samp.discordants.sorted
+#samtools sort aln/$samp.splitters.bam aln/$samp.splitters.sorted
+#samtools index aln/$samp.splitters.sorted.bam
 
-# Sort both alignments
-samtools sort $samp.discordants.unsorted.bam $samp.discordants
-samtools sort $samp.splitters.unsorted.bam $samp.splitters
+#done
 
+#######################################
+#### GET LIBRARY DISTRIBUTION INFO ####
+#######################################
 
-# First, generate empirical insert size statistics on each library in the BAM file
-samtools view $samp.bam \
-	| tail -n+100000 \
-	| $scripts/pairend_distro.py \
-	-r 101 \
-	-X 4 \
-	-N 10000 \
-	-o $samp.lib1.histo
+#for samp in `cat ../pv/names/our_goods_5x@80%.txt`
+#do
 
+#samtools view aln/$samp.bam \
+#	| tail -n+100000 \
+#	| $scripts/pairend_distro.py \
+#	-r 101 \
+#	-X 4 \
+#	-N 10000 \
+#	-o aln/$samp.histo > aln/$samp.libstats
 
-# Run LUMPY with paired-end and split-reads
-module remove python
-addpython3.3.3
-lumpy \
-	-mw 4 \
-	-tt 0 \
-	-pe id:$samp,bam_file:$samp.discordants.bam,histo_file:$samp.lib1.histo,mean:311,stdev:92,read_length:101,min_non_overlap:101,discordant_z:5,back_distance:10,weight:1,min_mapping_threshold:20 \
-	-sr id:$samp,bam_file:$samp.splitters.bam,back_distance:10,weight:1,min_mapping_threshold:20 \
-	> $samp.vcf # careful with this grepping bit... # | grep -v "AAKM" > $samp.vcf
-
-samtools sort $samp.bam $samp.sorted
-samtools index $samp.sorted.bam
-
-samtools index $samp.splitters.bam
-
-module remove python
-addpython2.7.6
-svtyper -B $samp.sorted.bam -S $samp.splitters.bam -i $samp.vcf > $samp.gt.vcf
-	# add in -M if I use the -M command in bwa mem
+#done
 
 
+#######################################
+############## RUN LUMPY ##############
+#######################################
 
+###module remove python
+###addpython3.3.3
+#for samp in `cat ../pv/names/our_goods_5x@80%.txt`
+#do
+
+#mean=`cat aln/$samp.libstats | cut -f1 | sed 's/[a-z].*://'`
+#sd=`cat aln/$samp.libstats | cut -f2 | sed 's/[a-z].*://'`
+
+#echo $samp
+#echo $mean
+#echo $sd
+
+#lumpy \
+#	-mw 4 \
+#	-tt 0 \
+#	-pe id:$samp,bam_file:aln/$samp.discordants.sorted.bam,histo_file:aln/$samp.histo,mean:$mean,stdev:$sd,read_length:101,min_non_overlap:101,discordant_z:5,back_distance:10,weight:1,min_mapping_threshold:20 \
+#	-sr id:$samp,bam_file:aln/$samp.splitters.sorted.bam,back_distance:10,weight:1,min_mapping_threshold:20 \
+#	> sv/$samp.vcf # careful with this grepping bit... # | grep -v "AAKM" > $samp.vcf
+#		## keep in mind that some pf were run with 125 chemistry, beginning with ones seqed in 2015
+#		## dont think any Pv were 125 chemistry since they were all 2014 I think
+
+#done
+
+#samtools sort $samp.bam $samp.sorted
+#samtools index $samp.sorted.bam
+
+
+#######################################
+############# RUN SVTYPER #############
+#######################################
+
+
+
+## Must execute from a python/2.7.6 environment 
+#module remove python
+#addpython2.7.6
+for samp in `cat ../pv/names/our_goods_5x@80%.txt`
+do
+
+bsub bash svtyperStarter.sh $samp
+
+done
