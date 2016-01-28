@@ -14,7 +14,7 @@ do
 
 grep "^#\|Pv_Sal1_chr$i" /proj/julianog/users/ChristianP/cambodiaWGS/variants/good69.pass.vcf | grep -v "AAKM" > test/vcf/chr$i.vcf
   
-grep "^#\|Pv_Sal1_chr$i" /proj/julianog/refs/PvSAL1_v10.0/PlasmoDB-10.0_PvivaxSal1.gff | grep -v "##FASTA\|>Pv_Sal1_chr$i\|AAKM"> test/gff/chr$i.gff
+grep "^#\|Pv_Sal1_chr$i" /proj/julianog/refs/PvSAL1_v13.0/PlasmoDB-13.0_PvivaxSal1.gff | grep -v "##FASTA\|>Pv_Sal1_chr$i\|AAKM"> test/gff/chr$i.gff
 
 done
 
@@ -22,9 +22,9 @@ done
 for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14
 do
 
-grep "^#\|^Pf3D7_$i\_v3" /proj/julianog/users/ChristianP/cambodiaWGS/PopGenome/pf_whole_genome/good41.pass.vcf > /proj/julianog/users/ChristianP/cambodiaWGS/PopGenome/pf_whole_genome/vcf/chr$i.vcf
+grep "^#\|^Pf3D7_$i\_v3" /proj/julianog/users/ChristianP/cambodiaWGS/PopGenome/pf_whole_genome/our_goods_UG.pass.vcf > /proj/julianog/users/ChristianP/cambodiaWGS/PopGenome/pf_whole_genome/vcf/chr$i.vcf
 
-grep "^#\|^Pf3D7_$i\_v3" /proj/julianog/refs/Pf3D7_v9.3/PlasmoDB-9.3_Pfalciparum3D7.gff > /proj/julianog/users/ChristianP/cambodiaWGS/PopGenome/pf_whole_genome/gff/chr$i.gff 
+grep "^#\|^Pf3D7_$i\_v3" /proj/julianog/refs/Pf3D7_v13.0/PlasmoDB-13.0_Pfalciparum3D7.gff > /proj/julianog/users/ChristianP/cambodiaWGS/PopGenome/pf_whole_genome/gff/chr$i.gff 
 
 done
 ```
@@ -57,7 +57,7 @@ pvPops <- set.populations(pv, list(
   indivs[[1]][1:69][grep("OM", indivs[[1]][1:length(indivs[[1]])])]))
 
 ## Split data into genes
-genes <- splitting.data(pvPops, subsites="gene", whole.data = FALSE)
+onePop_genes <- splitting.data(pv, subsites="gene", whole.data = FALSE)
   # Specify whole.data = FALSE because I don't want to concatenate regions
 
 ## Extracting gene IDs from the gff INFO field
@@ -82,13 +82,12 @@ chr14.ids <- str_extract(get_gff_info(gff.file="pv_whole_genome/gff/chr14.gff", 
 chr.all.ids <- unlist(list(chr01.ids, chr02.ids, chr03.ids, chr04.ids, chr05.ids, chr06.ids, chr07.ids, chr08.ids, chr09.ids, chr10.ids, chr11.ids, chr12.ids, chr13.ids, chr14.ids))
 
 ## Assign the @region.names slot with the new names - YEAH!!
-genes@region.names <- chr.all.ids
+onePop_genes@region.names <- chr.all.ids
 ```
 
 Calculate Tajima's D for all three Pv populations: OM, BB, and KP. Note that this might not be a fair calculation at all, since we probably shouldn't be doing Tajima's D on small populations like BB and KP.
 ```{r}
 ## Calculate Tajima's D by gene for BB+OM+KP as one population
-onePop_genes <- splitting.data(threePops, subsites="gene")
 onePop_genes <- neutrality.stats(onePop_genes)
 
 ## What if we want to look at Tajima'D by position?

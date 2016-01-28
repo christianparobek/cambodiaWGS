@@ -71,7 +71,7 @@ ISOmod = mydemos.Iso
 ISO_ex = dadi.Numerics.make_extrap_log_func(ISOmod)
 
 upperISO = [0.9999, 20, 20, 5] # originally 0.99, 20, 20, 5
-lowerISO = [0.0001, 0.5, 0.5, 0.005] # originally 0.01, 0.5, 0.5, 0.005
+lowerISO = [0.0001, 0.05, 0.05, 0.005] # originally 0.01, 0.5, 0.5, 0.005
 startISO = [0.25, 5, 5, 0.75]
 p0ISO = dadi.Misc.perturb_params(startISO, fold=1, upper_bound=upperISO)
 
@@ -98,7 +98,7 @@ IMmod = mydemos.IM
 IM_ex = dadi.Numerics.make_extrap_log_func(IMmod)
 
 upperIM = [0.9999, 20, 20, 5, 20, 20] # originally 0.99, 20, 20, 5, 20, 20
-lowerIM = [0.0001, 0.5, 0.5, 0.005, .01, .01] # originally 0.01, 0.5, 0.5, 0.005, 0.1, 0.1
+lowerIM = [0.0001, 0.05, 0.05, 0.005, .01, .01] # originally 0.01, 0.5, 0.5, 0.005, 0.1, 0.1
 startIM = [0.25, 5, 5, 0.75, 2, 2]
 p0IM = dadi.Misc.perturb_params(startIM,fold=1,upper_bound=upperIM)
 

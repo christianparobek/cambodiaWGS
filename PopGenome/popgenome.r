@@ -15,15 +15,41 @@ library(stringr)
 ################# Define Functions ##################
 #####################################################
 
-## Function to assign pop based on name
+## Function to assign pop based on geography
 pop.namer <- function(GENOME){
   indivs <- get.individuals(GENOME)[[1]]
-  pops <- set.populations(pf, list(
+  pops <- set.populations(GENOME, list(
     indivs[grep("BB", indivs)], 
     indivs[grep("KP", indivs)], 
     indivs[grep("OM|SN|TB", indivs)]))
   return(pops)
 }
+
+## Function to assign pop on up to four arbitrary groupings
+## each grouping should be a list
+pop.divider  <- function(GENOME, pop1, pop2, pop3, pop4){
+  if(missing(GENOME)){
+    print("Missing genome object")
+    stop()
+  } else if(missing(pop1)) {
+    print("you forgot a pop file")
+  } else if(missing(pop2)) {
+    print("loading one pop")
+    pops <- set.populations(GENOME, list(pop1))
+    return(pops)
+  } else if(missing(pop3)) {
+    print("loading two pops")
+    pops <- set.populations(GENOME, list(pop1, pop2))
+    return(pops)
+  } else if(missing(pop4)) {
+    print("loading three pops")
+    pops <- set.populations(GENOME, list(pop1, pop2, pop3))
+    return(pops)
+  } else {
+    print("loading four pops")
+    pops <- set.populations(GENOME, list(pop1, pop2, pop3, pop4))
+    return(pops)
+  }}
 
 ## Break a GENOME object by gene and name it
 get.pf.genes <- function(GENOME){
@@ -93,10 +119,25 @@ pv <- readData("pv_whole_genome/vcf/", format="VCF", gffpath = "pv_whole_genome/
 ## Read in the ortholog key
 ortho_key <- read.table("pv_pf_orthologs.txt")
 
+## Read in Pf CP lists
+popgenome_dir <- getwd() # so i can easily reset the working directory
+setwd("/run/user/1000/gvfs/sftp:host=kure.unc.edu,user=prchrist/proj/julianog/users/ChristianP/cambodiaWGS/dadi/data/pf/cp_groups")
+cp1 <- scan("cp1.txt", what="", sep="\n")
+cp2o <- scan("cp2+outliers.txt", what="", sep="\n") # with outliers
+cp3 <- scan("cp3.txt", what="", sep="\n")
+cp4 <- scan("cp4.txt", what="", sep="\n")
+setwd(popgenome_dir)
 
 #####################################################
 ################### Process Data ####################
 #####################################################
+
+## Define Populations on Geography
+pf <- pop.namer(pf)
+pv <- pop.namer(pv)
+
+## OR ## Define Populations Arbitrarily (eg. CP groups)
+pf <- pop.divider(pf, cp1, cp2o, cp3, cp4)
 
 ## Split into Genes
 pf_genes <- get.pf.genes(pf)
@@ -137,6 +178,24 @@ pvpf$Diff <- (as.numeric(as.character(pvpf$PvTajD)) - as.numeric(as.character(pv
 pvpf_ord <- pvpf[with(pvpf, order(Diff)), ]
 pvpf_ord_omit <- na.omit(pvpf_ord)
 pvpf_ord_omit$Counter <- 1:nrow(pvpf_ord_omit)
+
+
+## OR, GET TOP PF AND PV TAJIMA'S D VALUES
+#pv_taj <- cbind(pv_genes@Tajima.D, pv_genes@region.names)
+#pf_taj <- cbind(pf_genes@Tajima.D, pf_genes@region.names)
+
+## get top 20
+pf_genes@region.names[order(pf_genes@Tajima.D, na.last = FALSE)]
+pv_genes@region.names[order(pv_genes@Tajima.D, na.last = FALSE)]
+ 
+## get the antigens
+pv_data <- cbind(pv_genes@region.names, pv_genes@Tajima.D)
+pf_data <- cbind(pf_genes@region.names, pf_genes@Tajima.D)
+write.table(pf_data, file = "pf_taj_table.txt")
+write.table(pv_data, file = "pv_taj_table.txt")
+
+
+pv_data[1,pv_data[,1] == "PVX_082735"]
 
 
 ################################
@@ -186,3 +245,60 @@ legend(0.3, 0.5,
 axis(1, at=c(-3,-2,-1,0,1,2,3), labels=c("-3","","-1","","1","","3"))
 axis(2, at=c(0,0.8), labels=c("",""), las=2)
 
+
+#####################################################
+################# Sliding Windows ###################
+#####################################################
+
+detail.stats(pf_genes, biallelic.structure=TRUE)
+neutrality.stats(pf_genes_slide)
+
+pf_genes_slide <- sliding.window.transform(pf_genes, width=50, jump=25, type=2, whole.data=FALSE)
+  # type=2 defines window on nucleotide counts rather than on SNP counts
+
+#####################################################
+################## R2 STATISTICS ####################
+#####################################################
+## might not be able to use R to do this because keeps crashing on pv
+
+
+pf <- linkage.stats(pf)
+pf <- calc.R2(pf)
+pv <- calc.R2(pv)
+
+r2Digester <- function()
+
+class(pf@region.stats@linkage.disequilibrium[[1]][,1])
+long <- unlist(pf@region.stats@linkage.disequilibrium[[6]][1]) ## this is a list of r2, p value, nuc dst
+r2 <- long[seq(1, length(long), 3)]
+p <- long[seq(2, length(long), 3)]
+dst <- long[seq(3, length(long), 3)]
+## I hope there's a way to subset a Genome object by individual
+## So just take a few of the individuals 
+
+
+
+a <- 1:120
+b <- a[seq(1, length(a), 6)]
+
+
+
+#####################################################
+################# Coalescent Sims ###################
+#####################################################
+
+coal_sims <- readMS("ms.test")
+coal_sims@region.names
+coal_sims <- neutrality.stats(coal_sims)
+coal_sims@Tajima.D
+plot(density(coal_sims@Tajima.D))
+
+
+pf_genes <- pop.namer(pf_genes)
+pf <- neutrality.stats(pf)
+
+ge## run it inside the program?
+## if i need to account for gene length a la HH Chang, use pf_genes@n.sites
+params <- new("test.params")
+params@theta <- rep(5, length(pf@region.names))
+sim <- MS(pf, neutrality = TRUE, params = params, niter = 10)

@@ -16,7 +16,6 @@
 ###################################################
 
 library(stringr)
-library(boot)
 
 ###################################################
 ################ DEFINE FUNCTIONS #################
@@ -124,7 +123,7 @@ pv_order <- order(pv_point_estimate)
 ################### PLOT FWS ######################
 ###################################################
 
-#svg("fws.svg", width = 7.5, height = 5)
+svg("fws.svg", width = 7.5, height = 5)
 plot(pf_point_estimate,
      pch=19,
      col="grey25",
@@ -159,4 +158,4 @@ legend(35, 0.6,
        cex=1.25)
 mtext("Isolates", side=1, line=2)
 mtext(expression(italic("F")["WS"]), side=2, line=2.5)
-#dev.off()
+dev.off()

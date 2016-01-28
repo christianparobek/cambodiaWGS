@@ -21,7 +21,7 @@ rm modelFitting/pf/1pop/*
 ###### RUN THE MODEL FITTING ######
 ###################################
 
-for i in 1 2 4
+for i in 2+outliers 2 # 1 4 
 do
 
 ## convert vcf to dadi format
@@ -32,12 +32,12 @@ python vcf2dadi.py \
 
 ## run the models
 
-for rep in {1..50}
+for rep in {1..100}
 do
 
 bsub python 1-pop.py \
 	--dadi data/pf/dadi/cp$i.dadi \
-	--pop1name CP$i --projection 14 \
+	--pop1name CP$i --projection 18 \
 	--outDir modelFitting/pf/1pop/ --outName cp$i
 
 done

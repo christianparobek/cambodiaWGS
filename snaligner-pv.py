@@ -4,17 +4,18 @@
 ##########################################################################################
 
 ####### Turn on for Pv ##########
-workdir: '/proj/julianog/projects/cambodiaWGS-pvpf/pv/'
+workdir: '/proj/julianog/users/ChristianP/cambodiaWGS/pv/'
 REF = '/proj/julianog/refs/PvSAL1_v13.0/PlasmoDB-13.0_PvivaxSal1_Genome.fasta'
-readWD = '/proj/julianog/projects/cambodiaWGS-pvpf/pv/'
-DATEDSAMPS, = glob_wildcards('/proj/julianog/projects/cambodiaWGS-pvpf/pv/symlinks/{ds}_R1.fastq.gz')
-SAMPLES, = glob_wildcards('/proj/julianog/projects/cambodiaWGS-pvpf/pv/aln/{sample}.merged.bam')
-CHROMOS, = glob_wildcards('/proj/julianog/projects/cambodiaWGS-pvpf/pv/intervals/{sample}.merged.bam')
+readWD = '/proj/julianog/users/ChristianP/cambodiaWGS/pv/'
+DATEDSAMPS, = glob_wildcards('/proj/julianog/users/ChristianP/cambodiaWGS/pv/symlinks/{ds}_R1.fastq.gz')
+SAMPLES, = glob_wildcards('/proj/julianog/users/ChristianP/cambodiaWGS/pv/aln/{sample}.merged.bam')
+CHROMOS, = glob_wildcards('/proj/julianog/users/ChristianP/cambodiaWGS/pv/intervals/{sample}.merged.bam')
 merger = 'pv/pvDedupMerger.sh'
 
 ######## Always on #########
 PICARD = '/nas02/apps/picard-1.88/picard-tools-1.88'
-GATK = '/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.3-0/GenomeAnalysisTK.jar'
+#GATK = '/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.3-0/GenomeAnalysisTK.jar'
+GATK = '/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.4-46/GenomeAnalysisTK.jar'
 TMPDIR = '/netscr/prchrist/tmp_for_picard/'
 
 
@@ -23,27 +24,23 @@ TMPDIR = '/netscr/prchrist/tmp_for_picard/'
 
 ####### Target #######
 rule all:
-#	input: expand('aln/{ds}.sam', ds = DATEDSAMPS)
 #	input: expand('aln/{ds}.dedup.bam', ds = DATEDSAMPS) # Run to here frist, then run dedupMerger.sh
-#	input: expand('aln/{sample}.realn.bam', sample = SAMPLES)
-#	input: expand('coverage/{sample}.cov10', sample = SAMPLES)
 #	input: 'names/bamnames.list'
 #	input: 'coverage/cov_plot.pdf'
-#	input: expand('variants/indiv_chrs/{list}_chr{chr}_HC.vcf', list = 'our_goods all_goods'.split(), chr = '01 02 03 04 05 06 07 08 09 10 11 12 13 14 mito'.split())
-#	input: expand('variants/{list}_UG.vcf', list = 'our_goods all_goods'.split())
-#	input: expand('aln/{sample}.realigner.intervals', sample = SAMPLES)
+#	input: 'coverage/coverage.txt'
 	input: expand('variants/{list}_UG.pass.vcf', list = 'our_goods all_goods'.split())
+#	input: expand('variants/indivs/{names}.vcf', names = SAMPLES)
 
-#rule make_bamnames_list:
-#	input: 'names/sample.list'
-#	output: 'names/bamnames.list'
-#	shell: 'sed s#^#aln/# names/sample.list > names/bamnames.list'
 
-#rule make_sample_list:
-#	input: expand('aln/{sample}.realn.bam', sample = SAMPLES)
-#	output: 'names/sample.list'
-#	shell: 'ls aln | grep .realn.bam > names/sample.list'
-
+#rule split_vcf :
+#	input: vcf = 'variants/all_goods_UG.pass.vcf', names = SAMPLES
+#	output: 'variants/indivs/{names}.vcf'
+#	shell: 'java -jar {GATK} \
+#		-T SelectVariants \
+#		-R {REF} \
+#		--variant {input.vcf} \
+#		-sn {input.names} \
+#		-o {output}'
 
 rule select_variants :
 	input: 'variants/{list}_UG.qual.vcf'
@@ -91,28 +88,10 @@ rule filter_min_depth :
 
 rule unified_genotyper :
 	input: bams = 'names/{list}_5x@80%.list', intervals = 'intervals/all_chrs.intervals'
-	output: 'variants/{list}_UG.vcf'
+	output: 'variants/gvcfs/{list}_UG.vcf'
 	shell: 'java -jar {GATK} -T UnifiedGenotyper \
 		-R {REF} -I {input.bams} \
 		-L {input.intervals} -nt 8 \
-		-ploidy 1 -o {output}'
-		# all_chrs.intervals includes only chrs and mito
-
-rule combine_hc_chrs:
-	input: 'names/chr_vcf_names.list'
-	output: 'variants/all10_HC.vcf'
-	shell: 'java -Xmx2g -jar {GATK} -T CombineVariants \
-		-R {REF} -o {output} \
-		--variant {input} \
-		-genotypeMergeOptions UNSORTED'
-		# UNSORTED just keeps one column for each individual
-
-rule haplotype_caller_chrs:
-	input: bams = 'names/{list}_5x@80%.list', chrs = 'intervals/indiv_chrs/chr{chr}.intervals'
-	output: 'variants/indiv_chrs/{list}_chr{chr}_HC.vcf'
-	shell: 'java  -Xmx48g -jar {GATK} -T HaplotypeCaller \
-		-R {REF} -I {input.bams} \
-		-L {input.chrs} \
 		-ploidy 1 -o {output}'
 		# all_chrs.intervals includes only chrs and mito
 

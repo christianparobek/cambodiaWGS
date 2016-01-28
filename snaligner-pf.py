@@ -4,15 +4,16 @@
 ##########################################################################################
 
 ######## Turn on for Pf ##########
-workdir: '/proj/julianog/projects/cambodiaWGS-pvpf/pf/'
+workdir: '/proj/julianog/users/ChristianP/cambodiaWGS/pf/'
 REF = '/proj/julianog/refs/Pf3D7_v13.0/PlasmoDB-13.0_Pfalciparum3D7_Genome.fasta'
-readWD = '/proj/julianog/projects/cambodiaWGS-pvpf/pf/'
-DATEDSAMPS, = glob_wildcards('/proj/julianog/projects/cambodiaWGS-pvpf/pf/symlinks/{ds}_R1.fastq.gz')
-SAMPLES, = glob_wildcards('/proj/julianog/projects/cambodiaWGS-pvpf/pf/aln/{sample}.merged.bam')
+readWD = '/proj/julianog/users/ChristianP/cambodiaWGS/pf/'
+DATEDSAMPS, = glob_wildcards('/proj/julianog/users/ChristianP/cambodiaWGS/pf/symlinks/{ds}_R1.fastq.gz')
+SAMPLES, = glob_wildcards('/proj/julianog/users/ChristianP/cambodiaWGS/pf/aln/{sample}.merged.bam')
 
 ######## Always on #########
 PICARD = '/nas02/apps/picard-1.88/picard-tools-1.88'
-GATK = '/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.3-0/GenomeAnalysisTK.jar'
+#GATK = '/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.3-0/GenomeAnalysisTK.jar'
+GATK = '/nas02/apps/biojars-1.0/GenomeAnalysisTK-3.4-46/GenomeAnalysisTK.jar'
 TMPDIR = '/netscr/prchrist/tmp_for_picard/'
 
 
@@ -22,18 +23,13 @@ TMPDIR = '/netscr/prchrist/tmp_for_picard/'
 ####### Target #######
 rule all:
 #	input: expand('aln/{ds}.sam', ds = DATEDSAMPS)
-#	input: expand('aln/{ds}.bam', ds = DATEDSAMPS)
 #	input: expand('aln/{ds}.dedup.bam', ds = DATEDSAMPS) # Run to here frist, then run dedupMerger.sh
-#	input: expand('aln/{sample}.realn.bam', sample = SAMPLES)
-#	input: expand('coverage/{sample}.cov25', sample = SAMPLES)
+#	input: expand('aln/{sample}.merged.bam', sample = SAMPLES)
 #	input: 'names/bamnames.list'
-#	input: 'coverage/coverage.txt'
 #	input: 'coverage/cov_plot.pdf'
-#	input: expand('variants/{list}_chr{chr}_HC.vcf', list = 'our_goods all_goods'.split(), chr = '01 02 03 04 05 06 07 08 09 10 11 12 13 14 MITO'.split())
-#	input: expand('variants/{list}_UG.vcf', list = 'our_goods')
-#	input: expand('variants/{list}_UG.vcf', list = 'our_goods all_goods'.split())
-#	input: expand('variants/indiv_chrs/chr{chr}_HC.vcf', chr = '01 02 03 04 05 06 07 08 09 10 11 12 13 14 apico mito'.split())
 	input: expand('variants/{list}_UG.pass.vcf', list = 'our_goods all_goods'.split())
+#	input: expand('variants/indi_UG/{sample}.vcf', sample = SAMPLES)
+
 
 #rule make_bamnames_list:
 #	input: 'names/sample.list'
@@ -45,7 +41,12 @@ rule all:
 #	output: 'names/sample.list'
 #	shell: 'ls aln | grep .realn.bam > names/sample.list'
 
-rule select_variants :
+################################
+### FREEBAYES VARIANT CALLING ##
+################################
+
+
+rule select_variants_UG :
 	input: 'variants/{list}_UG.qual.vcf'
 	output: 'variants/{list}_UG.pass.vcf'
 	shell: 'java -jar {GATK} \
@@ -55,7 +56,7 @@ rule select_variants :
 		-restrictAllelesTo BIALLELIC'
 			# keeps only unfiltered sites
 
-rule filter_variants :
+rule filter_variants_UG :
 	input: vcf = 'variants/{list}_UG.vcf', depth = 'intervals/{list}_UG_05xAT100%.intervals', para = 'intervals/VAR_STEVOR_RIFIN.intervals', trf = 'intervals/trfExclude.intervals', telo = 'intervals/subtelomeres.intervals'
 	output: 'variants/{list}_UG.qual.vcf'
 	shell: 'java -jar {GATK} \
@@ -79,35 +80,41 @@ rule filter_variants :
 		--logging_level ERROR \
 		-o {output}'
 
-rule filter_min_depth :
+rule filter_min_depth_UG :
 	input: 'variants/{list}_UG.vcf'
 	output: 'intervals/{list}_UG_05xAT100%.intervals'
-	shell: 'java -Xmx2g -jar {GATK} \
+	shell: 'java -Xmx8g -jar {GATK} \
 		-T CoveredByNSamplesSites \
 		-R {REF} -V {input} -out {output} \
 		-minCov 05 -percentage 0.99999'
 		 #Output interval file contains sites that passed
 		 #Would be more elegant to use 1.0 instad of 0.99999, but that doesn't work
 
-rule unified_genotyper :
+
+rule unified_genotyper_indi :
+	input: bam = 'aln/{sample}.realn.bam', intervals = 'intervals/all_chrs.intervals'
+	output: 'variants/indi_UG/{sample}.vcf'
+	shell: 'java -Xmx8g -Djava.io.tmpdir={TMPDIR} -jar {GATK} \
+		-T UnifiedGenotyper \
+		-R {REF} -I {input.bam} \
+		-L {input.intervals} -nt 1 \
+		-ploidy 1 -o {output}'
+
+
+rule unified_genotyper_UG :
 	input: bams = 'names/{list}_5x@60%.list', intervals = 'intervals/all_chrs.intervals'
 	output: 'variants/{list}_UG.vcf'
-	shell: 'java -Djava.io.tmpdir={TMPDIR} -jar {GATK} \
+	shell: 'java -Xmx20g -Djava.io.tmpdir={TMPDIR} -jar {GATK} \
 		-T UnifiedGenotyper \
 		-R {REF} -I {input.bams} \
-		-L {input.intervals} -nt 8 \
+		-L {input.intervals} -nt 1 \
 		-ploidy 1 -o {output}'
 		# all_chrs.intervals includes only chrs and mito
 		# added that -Djava.io.tmpdir stuff because was crashing with too many open files
 
-rule haplotype_caller:
-	input: bams = 'names/{list}.list', chrs = 'intervals/indiv_chrs/chr{chr}.intervals'
-	output: 'variants/{list}_chr{chr}_HC.vcf'
-	shell: 'java -Xmx12g -jar {GATK} -T HaplotypeCaller \
-		-R {REF} -I {input.bams} \
-		-L {input.chrs} \
-		-ploidy 1 -o {output}'
-		# all_chrs.intervals includes only chrs and mito
+################################
+##### PRE VARIANT CALLING ######
+################################
 
 rule plot_coverage:
 	input: 'coverage/covPlotter.r'
@@ -127,7 +134,7 @@ rule make_R_cov_script:
 		coverage$V5 <- 1:length(coverage$V1)
 
 		##Plot the coverage graph
-		pdf(file="coverage/cov_plot.pdf", width = 16, height = 4)
+		pdf(file="coverage/cov_plot.pdf", width = 28, height = 4)
 		plot(coverage$V2 ~ coverage$V5, axes=FALSE, xlab="", ylab="Frac Genome Covered", ylim=c(0,1), col="black", pch=20)
 		points(coverage$V3 ~ coverage$V5, col="grey", pch=20)
 		points(coverage$V4 ~ coverage$V5, col="red", pch=20)

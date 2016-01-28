@@ -1,40 +1,47 @@
 ---
 title: "FwsCalc"
 author: "Christian Parobek"
-date: "01/20/2015"
+date: "04/27/2015"
 output: html_document
 ---
 
-We want to calculate Fws for the _P. falciparum_ and _P. vivax_ samples from our Uber WGS data. [Link](http://www.nature.com/nature/journal/v487/n7407/full/nature11174.html) for more details on Fws. This Rmd will calculate Fws from a multiVCF.
+We want to calculate Fws for the _P. vivax_ samples from our WR1576 WGS data. [Link](http://www.nature.com/nature/journal/v487/n7407/full/nature11174.html) for more details on Fws. This Rmd will calculate Fws from a multiVCF.
 
-First, we need to get the VCF file formatted for input into R. Using `sed`.
-```{r, engine='bash'}
-sed 's/#CHROM/CHROM/' good41.pass.vcf > pfForFwsCalc.vcf
-sed 's/#CHROM/CHROM/' test.vcf > pvForFwsCalc.vcf
-    # Uncomment the header line that begins with "#CHROM"
+This Rmd doc involves multiple steps, including:
+
+1. Subsetting the VCF into exon and non-exon files  
+2. Properly format the VCF  
+3. Extract the read-depth data using regex  
+4. Calculate relevant statistics for exons, nonexons, and exon+nonexon regions
+
+```{r, echo=FALSE, engine='bash', cache=TRUE}
+## Make the necessary exon and non-exon GFF definition files
+grep "exon\|##" PlasmoDB-13.0_PvivaxSal1.gff | grep -v "gene" | head -n -1 > PlasmoDB-13.0_PvivaxSal1_exons.gff
+    # Make an exon-only GFF file (includes header)
+    # Grep out any gene entries that slipped in because they had "exon" in their description
+    # Remove the last line of the file, since it starts with '##' 
+
+## Use bedtools to subset exonic and non-exonic regions 
+bedtools intersect -header -a ../variants/our_goods_UG.pass.vcf -b PlasmoDB-13.0_PvivaxSal1_exons.gff > our_goods.exons.vcf
+    # Get only VCF entries in combined.pass.vcf that are in exons
+bedtools intersect -header -v -a ../variants/our_goods_UG.pass.vcf -b PlasmoDB-13.0_PvivaxSal1_exons.gff > our_goods.nonexons.vcf
+    # Get only VCF entries in combined.pass.vcf that are outside exons
+
+## Next, use sed to replace #CHROM -> CHROM
+sed 's/#CHROM/CHROM/' ../variants/our_goods_UG.pass.vcf > all.vcf
+sed 's/#CHROM/CHROM/' our_goods.exons.vcf > exons.vcf
+sed 's/#CHROM/CHROM/' our_goods.nonexons.vcf > nonexons.vcf
 ```
 
-Load the regex library and load the _P. falciparum_ and _P. vivax_ datasets:
 ```{r, echo=FALSE}
 ## LOAD REGEX LIBRARY
 library(stringr)
 
 ## READ IN THE Pf AND Pv MULTIVCFs
-pfVCF <- read.table("pfForFwsCalc.vcf", comment.char="#", header=TRUE)
-pvVCF <- read.table("pvForFwsCalc.vcf", comment.char="#", header=TRUE)
+pvAllVCF <- read.table("all.vcf", comment.char="#", header=TRUE)
+pvExVCF <- read.table("exons.vcf", comment.char="#", header=TRUE)
+pvNexVCF <- read.table("nonexons.vcf", comment.char="#", header=TRUE)
 
-```
-
-
-Now that the VCF file is properly formatted, read into R and calculate appropriate statistics.
-
-Define a function that will:
-
-1. Properly format the VCF
-2. Extract the read-depth data using regex
-3. Calculate relevant statistics
-
-```{r, echo=FALSE}
 ## DEFINE A FUNCTION THAT WILL CALCULATE Fws FOR EACH DATASET
 
 fwsCalc <- function(dataset) {
@@ -91,19 +98,19 @@ fwsCalc <- function(dataset) {
   ## CALCULATE Fws
   1 - Hw/Hs
   
-  }
-```
+}
 
-Now, pass the _P. falciparum_ and _P. vivax_  datasets to that function.
-```{r, echo=FALSE}
+## FINALLY, PLOT THE GRAPHS
 
-pv_fws <- fwsCalc(pvVCF)
+pv_all_fws <- fwsCalc(pvAllVCF)
+pv_ex_fws <- fwsCalc(pvExVCF)
+pv_nex_fws <- fwsCalc(pvNexVCF)
 
-pf_fws <- fwsCalc(pfVCF)
-
-hist(pv_fws, breaks=14)
-
-hist(pf_fws, breaks=14)
+hist(pv_all_fws, breaks=14, main="", xlab="Fws", ylab="Occurrences", axes=FALSE, xlim=c(0.2,1))
+axis(1)
+axis(2, las=2)
+hist(pv_ex_fws, breaks=14)
+hist(pv_nex_fws, breaks=14)
 
 ```
 

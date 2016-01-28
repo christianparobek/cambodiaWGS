@@ -14,8 +14,8 @@ library(stringr)
 ### DEFINE FUNCTIONS
 ##########
 
-bedMaker <- function(index){
-  df <- as.data.frame(cbind(pfPops_slide@region.names, pfPops_slide@nuc.F_ST.pairwise[index,])) ## make df w/chr info
+bedMaker <- function(GENOME_obj, index){
+  df <- as.data.frame(cbind(GENOME_obj@region.names, GENOME_obj@nuc.F_ST.pairwise[index,])) ## make df w/chr info
   c1 <- str_extract(df$V1, "chr\\d\\d.vcf") ## need to clean it up to get it into bed format for circlize
   c2 <- str_replace(c1, ".vcf", "_v3")
   chromosome <- str_replace(c2, "chr", "Pf3D7_")
@@ -67,11 +67,11 @@ leadingZeroScrubber <- function(bed){
 ##########
 
 ## read in genome data
-setwd("/run/user/1000/gvfs/sftp:host=kure.unc.edu,user=prchrist/proj/julianog/users/ChristianP/cambodiaWGS/PopGenome/pf_whole_genome/")
+setwd("/run/user/1001/gvfs/sftp:host=kure.unc.edu,user=prchrist/proj/julianog/users/ChristianP/cambodiaWGS/PopGenome/pf_whole_genome/")
 pf <- readData("vcf/", format="VCF", gffpath = "gff/")
 
 ## read in groupings
-setwd("/run/user/1000/gvfs/sftp:host=kure.unc.edu,user=prchrist/proj/julianog/users/ChristianP/cambodiaWGS/dadi/data/pf/cp_groups/")
+setwd("/run/user/1001/gvfs/sftp:host=kure.unc.edu,user=prchrist/proj/julianog/users/ChristianP/cambodiaWGS/dadi/data/pf/cp_groups/")
 cp1 <- read.table("cp1.txt")
 cp2 <- read.table("cp2.txt")
 cp3 <- read.table("cp3.txt")
@@ -79,7 +79,7 @@ cp4 <- read.table("cp4.txt")
 pfPops <- set.populations(pf, list(as.character(cp1$V1), as.character(cp2$V1), as.character(cp3$V1), as.character(cp4$V1)))
 
 ## read chromosome info for circlize
-setwd("/run/user/1000/gvfs/sftp:host=kure.unc.edu,user=prchrist/proj/julianog/users/ChristianP/cambodiaWGS/circlize/")
+setwd("/run/user/1001/gvfs/sftp:host=kure.unc.edu,user=prchrist/proj/julianog/users/ChristianP/cambodiaWGS/circlize/")
 chr_info <- read.table("pf_chr_data.txt", header=TRUE)
 fsttest <- read.table("pf_fst_data.txt", header=TRUE)
 
@@ -87,25 +87,39 @@ fsttest <- read.table("pf_fst_data.txt", header=TRUE)
 ### Calculate pairwise Fst
 ##########
 
+pfPops_slide <- sliding.window.transform(pfPops, width = 100, jump = 10, type = 1, whole.data = FALSE)
 pfPops_slide <- sliding.window.transform(pfPops, width = 10000, jump = 1000, type = 2, whole.data = FALSE)
 pfPops_slide <- F_ST.stats(pfPops_slide)
 
-# make beds from the data
-cp1cp2_bed <- leadingZeroScrubber(bedMaker(1))
+
+## Split data into genes
+pfPops_genes <- splitting.data(pfPops, subsites="gene", whole.data = FALSE)
+pfPops_genes <- F_ST.stats(pfPops_genes)
+# Specify whole.data = FALSE because I don't want to concatenate regions
+
+
+## Make beds from the data
+cp1cp2_bed <- leadingZeroScrubber(bedMaker(pfPops_genes, 1))
 cp1cp3_bed <- leadingZeroScrubber(bedMaker(2))
 cp1cp4_bed <- leadingZeroScrubber(bedMaker(3))
 cp2cp3_bed <- leadingZeroScrubber(bedMaker(4))
 cp2cp4_bed <- leadingZeroScrubber(bedMaker(5))
 cp3cp4_bed <- leadingZeroScrubber(bedMaker(6))
 
+## Calculate genome-wide Fst -- not necessary for the circlize figure
+pfPops_concat <- concatenate.regions(pfPops) # doesn't seem to do anything when it comes to Fst
+pfPops_concat <- F_ST.stats(pfPops)
+concat_object <- get.F_ST(pfPops_concat, pairwise = TRUE)
+apply(concat_object[[1]], 2, FUN = mean) # this gets me the average across chromosomes... not ideal, but maybe OK
 
+#pfPops <- linkage.stats(pfPops)
 
 ##########
 ### SET PLOT PARAMS AND PLOT DATA
 ##########
 
-#svg("circlize_fst.svg", width = 7, height = 7)
-png("circlize_fst.png", width = 7, height = 7, unit = "in", res = 300)
+svg("circlize_fst.svg", width = 7, height = 7)
+tiff("circlize_fst.tiff", width = 7, height = 7, units = "in", res = 300, compression = "lzw")
 
 ## set params
 circos.par(start.degree = 90, gap.degree = 2, unit.circle.segments = 100)
@@ -148,4 +162,17 @@ circos.text(mean(get.cell.meta.data("xlim")),0.5, labels = "")
 
 circos.clear()
 dev.off()
+
+
+
+
+#############
+## scratch ##
+#############
+
+## plot roughly just chr14 on a sliding window with 10000 width and 1000 jump
+plot(tail(1:length(pfPops_slide@nuc.F_ST.pairwise[6,]), 3220), tail(pfPops_slide@nuc.F_ST.pairwise[6,], 3220))
+
+## plot roughly just chr14 on genes
+plot(tail(1:length(pfPops_genes@nuc.F_ST.pairwise[6,]), 812), tail(pfPops_genes@nuc.F_ST.pairwise[6,], 812))
 

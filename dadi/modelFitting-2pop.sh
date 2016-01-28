@@ -20,7 +20,7 @@ rm modelFitting/pf/2pop/*
 ###### RUN THE MODEL FITTING ######
 ###################################
 
-for comparison in 12 # 14 24 # 13 23 34 # set up the pairwise comparisons
+for comparison in 12 14 24 # 13 23 34 # set up the pairwise comparisons
 do
 
 i=${comparison:0:1} # get first pop in pairwise comp
@@ -34,7 +34,7 @@ python vcf2dadi.py \
 	--pop1name CP$i --pop2name CP$j --out data/pf/dadi/cp$i-cp$j.dadi 
 
 ## fit the three 2-pop models to the data
-for iter in {1..100}
+for iter in {1..10}
 do
 
 bsub python 2-pop.py \

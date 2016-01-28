@@ -32,7 +32,7 @@ ALLELES = sys.argv[1]
 ## make data dictionary
 dd = dadi.Misc.make_data_dict(ALLELES)
 ## for example
-#dd = dadi.Misc.make_data_dict('changFig1Maker/pv/our.pv.syn.dadi')
+dd = dadi.Misc.make_data_dict('changFig1Maker/pv/our.pv.syn.dadi')
 
 
 ## make folded spectra
@@ -40,7 +40,6 @@ fs = dadi.Spectrum.from_data_dict(dd, pop_ids = ['Pop1'], projections = [70], po
 	# since none of my variant records have missing calls for some individuals
 	# (since I dealt with that in filtering the VCF in GATK), no need to project down.
 	# Projecting down can give you more SNPs if you have missing calls in some indivs
-
 
 ##################################
 ######## PRODUCE SPECTRUM ########
@@ -174,8 +173,102 @@ dadi.Plotting.plot_1d_fs(folded, fig_num=None)
 
 
 
+##################################
+######### TWO POPULATION #########
+##################################
 
 
 
+dd = dadi.Misc.make_data_dict('changFig1Maker/pf/cp1-cp2.dadi')
+PODS = dadi.Spectrum.from_data_dict(dd, pop_ids = ['CP1','CP2'], projections = [14, 18], polarized = False)
+PODS = dadi.Spectrum.from_file('YRI_CEU.fs')
+nsam = PODS._get_sample_sizes()
+
+sample_sizes = [nsam[0],nsam[0]]
+pts_l = [nsam[0]+10, nsam[0]+20, nsam[0]+30]
+
+import mydemos
+
+'''
+	This is the IM model - divergence with gene flow
+'''
 
 
+IMmod = mydemos.IM
+IM_ex = dadi.Numerics.make_extrap_log_func(IMmod)
+
+
+upperIM = [0.99, 10, 10, 5, 20, 20]
+lowerIM = [0.01, 0.5, 0.5, 0.005, .1, .1]
+startIM = [0.25, 5, 5, 0.75, 2, 2]
+p0IM = dadi.Misc.perturb_params(startIM,fold=1,upper_bound=upperIM)
+
+
+poptIM = dadi.Inference.optimize_log(p0IM, PODS, IM_ex, pts_l, verbose = False, lower_bound = lowerIM, upper_bound = upperIM, maxiter=20, epsilon = 1e-6)
+
+IMmod = IM_ex(poptIM, sample_sizes, pts_l)
+thetaIM = dadi.Inference.optimal_sfs_scaling(IMmod, PODS)
+IMmod *= thetaIM
+llIM = dadi.Inference.ll(IMmod, PODS)
+
+T2 = time()
+
+print llIM, thetaIM, poptIM[0], poptIM[1], poptIM[2], poptIM[3], poptIM[4], poptIM[5], T2-T1
+
+
+'''
+	This is the ISO model - divergence with no gene flow
+'''
+ISOmod = mydemos.Iso
+ISO_ex = dadi.Numerics.make_extrap_log_func(ISOmod)
+
+upperISO = [0.99, 10, 10, 5]
+lowerISO = [0.01, 0.5, 0.5, 0.005]
+startISO = [0.25, 5, 5, 0.75]
+p0ISO = dadi.Misc.perturb_params(startISO, fold=1, upper_bound=upperISO)
+
+poptISO = dadi.Inference.optimize_log(p0ISO, PODS, ISO_ex, pts_l, verbose = False, lower_bound = lowerISO, upper_bound = upperISO, maxiter= 20, epsilon = 1e-6)
+
+ISOmod = ISO_ex(poptISO, sample_sizes, pts_l)
+thetaISO = dadi.Inference.optimal_sfs_scaling(ISOmod, PODS)
+ISOmod *= thetaISO
+llISO = dadi.Inference.ll(ISOmod, PODS)
+#T2 = time()
+
+print llISO, thetaISO, poptISO[0], poptISO[1], poptISO[2], poptISO[3]
+
+
+'''
+	This is the SNM model - no divergence
+'''
+import numpy
+import dadi
+import argparse
+from time import time
+
+
+T1 = time()
+
+nsam = PODS._get_sample_sizes()
+sample_sizes = [nsam[0],nsam[0]]
+pts_l = [nsam[0]+10, nsam[0]+20, nsam[0]+30]
+
+import mydemos
+SNMmod = mydemos.snm2
+SNM_ex = dadi.Numerics.make_extrap_log_func(SNMmod)
+
+upperSNM = [100]
+lowerSNM = [1]
+startSNM = [10]
+p0SNM = dadi.Misc.perturb_params(startSNM, fold=1, upper_bound=upperSNM)
+
+poptSNM = dadi.Inference.optimize_log(p0SNM, PODS, SNM_ex, pts_l, verbose = False, lower_bound = lowerSNM, upper_bound = upperSNM, maxiter = 20, epsilon = 1e-6)
+
+SNMmod = SNM_ex(poptSNM, sample_sizes, pts_l)
+thetaSNM = dadi.Inference.optimal_sfs_scaling(SNMmod, PODS)
+SNMmod *= thetaSNM
+llSNM = dadi.Inference.ll(SNMmod, PODS)
+T2 = time()
+
+print('llSNM, thetaSNM')
+print llSNM, thetaSNM, T2-T1
