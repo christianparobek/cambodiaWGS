@@ -32,15 +32,6 @@ rule all:
 #	input: expand('variants/indivs/{names}.vcf', names = SAMPLES)
 
 
-#rule split_vcf :
-#	input: vcf = 'variants/all_goods_UG.pass.vcf', names = SAMPLES
-#	output: 'variants/indivs/{names}.vcf'
-#	shell: 'java -jar {GATK} \
-#		-T SelectVariants \
-#		-R {REF} \
-#		--variant {input.vcf} \
-#		-sn {input.names} \
-#		-o {output}'
 
 rule select_variants :
 	input: 'variants/{list}_UG.qual.vcf'
@@ -65,16 +56,22 @@ rule filter_variants :
 		-XL {input.telo} \
 		--filterExpression "QD < 25.0" \
 		--filterName "QD" \
-		--filterExpression "MQ < 55.0" \
+		--filterExpression "MQ < 59.0" \
 		--filterName "MQ" \
-		--filterExpression "FS > 10.0" \
+		--filterExpression "FS > 5.0" \
 		--filterName "FS" \
-		--filterExpression "MQRankSum < -5.0" \
+		--filterExpression "MQRankSum < -1.0" \
 		--filterName "MQRankSum" \
-		--filterExpression "ReadPosRankSum < -5.0" \
+		--filterExpression "ReadPosRankSum < -1.0" \
 		--filterName "ReadPosRankSum" \
+		--filterExpression "DP < 1968" \
+		--filterName "DepthLT10th" \
+		--filterExpression "DP > 3220" \
+		--filterName "DepthGT90th" \
 		--logging_level ERROR \
 		-o {output}'
+	## for all: set DP filter to 11403-26793 to elim 10th & 90th percentile
+	## for our: set DP filter to 1968-3220 to elim 10th & 90th percentile
 
 rule filter_min_depth :
 	input: 'variants/{list}_UG.vcf'

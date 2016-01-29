@@ -92,9 +92,13 @@ bootstrapper <- function(data_frame, num_samples, num_reps, fws_function){
 ################## READ IN DATA ###################
 ###################################################
 
+## READ ARGS FROM COMMAND LINE
+args = commandArgs(trailingOnly=TRUE)
+
 ## READ IN THE Pf AND Pv MULTIVCFs
-pv <- read.table("our_goods_pv.pass.vcf.gz", comment.char="#", header=TRUE)
-pf <- read.table("our_goods_pf.pass.vcf.gz", comment.char="#", header=TRUE)
+setwd("/proj/julianog/users/ChristianP/cambodiaWGS/")
+pv <- read.table(args[1], comment.char="#", header=FALSE)
+pf <- read.table(args[2], comment.char="#", header=FALSE)
 
 
 ###################################################
@@ -123,11 +127,11 @@ pv_order <- order(pv_point_estimate)
 ################### PLOT FWS ######################
 ###################################################
 
-svg("fws.svg", width = 7.5, height = 5)
+svg(args[3], width = 7.5, height = 5)
 plot(pf_point_estimate,
      pch=19,
      col="grey25",
-     xlim=c(0,75),
+     xlim=c(0,80),
      ylim=c(0.2,1),
      xlab="",
      ylab="",
