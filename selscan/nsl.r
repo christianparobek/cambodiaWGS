@@ -35,7 +35,7 @@ for(chr in len$V1){
 
 frac <- 0.005 # get top 0.1%
 top <- order(abs(big$V6), decreasing = TRUE)[1:round(frac*nrow(big))] # define the top samples
-cutoff <- big[tail(top, 1), 6] # get the cutoff
+cutoff <- abs(big[tail(top, 1), 6]) # get the cutoff
 
 
 ####################
@@ -45,9 +45,8 @@ cutoff <- big[tail(top, 1), 6] # get the cutoff
 svg(paste(args[1], ".svg", sep = ""), width = 8, height = 5)
 palette(c("bisque4","darkcyan"))
 plot(big$V2, abs(big$V6), ylim=c(0,2.5), col = as.factor(big$V7), pch = 20, cex = 0.05, las = 1, axes = FALSE, ylab = "", xlab = "")
-points(big[big$V6 >= cutoff,]$V2, abs(big[big$V6 >= cutoff,]$V6), pch = 20, cex = 0.25, col = "red") # highlight the top x percent
+points(big[abs(big$V6) >= cutoff,]$V2, abs(big[abs(big$V6) >= cutoff,]$V6), pch = 20, cex = 0.25, col = "red") # highlight the top x percent
 axis(1, at = apply(len, 1, function(x) as.numeric(x[4]) + 0.5*as.numeric(x[2])), labels = 1:14, cex.axis = 0.7) # put ticks at medians
-#axis(1, at = tapply(big$V2, big$V7, median), labels = 1:14, cex.axis = 0.7) # put ticks at medians
 axis(2, las = 1, cex.axis = 0.8)
 mtext("Chromosome", 1, line = 2.5)
 mtext(expression(italic("nS")[L]), 2, line = 2.5)

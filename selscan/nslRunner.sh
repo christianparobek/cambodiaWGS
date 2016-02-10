@@ -60,3 +60,5 @@ done
 #### PLOT nSL ####
 
 Rscript nsl.r $wkdir $species $picname
+
+
