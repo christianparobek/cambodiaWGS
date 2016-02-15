@@ -8,6 +8,12 @@
 	Requires mydemos.py in the working dir to define demographic models.
 """
 
+import sys
+sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/dadi-1.6.3-py2.6-linux-x86_64.egg')
+sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/dadi-1.6.3-py2.6-linux-x86_64.egg/dadi')
+sys.path.append('/proj/julianog/users/ChristianP/cambodiaWGS/dadi') # needed to get to mydemos
+sys.path.insert(1, '/nas02/home/p/r/prchrist/lib/python2.6/site-packages/numpy-1.9.0/numpy ')
+
 import numpy
 import dadi
 import argparse

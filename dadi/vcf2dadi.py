@@ -9,11 +9,11 @@
 ######## IMPORT LIBRARIES ########
 ##################################
 
-## OR THIS WORKS BUT IT's CLUNKY
+## this works but it's kind of clunky
 import sys
-#sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/PyVCF-0.6.7-py2.6-linux-x86_64.egg')
-#sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/PyVCF-0.6.7-py2.6-linux-x86_64.egg/vcf')
-#sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/Counter-1.0.0-py2.6.egg')
+sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/PyVCF-0.6.7-py2.6-linux-x86_64.egg')
+sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/Counter-1.0.0-py2.6.egg')
+
 import Bio
 from Bio import SeqIO
 import vcf
@@ -164,7 +164,4 @@ else:
 
 OUT.close()
 
-###################################
-######## PRINT DADI FORMAT ########
-###################################
 
