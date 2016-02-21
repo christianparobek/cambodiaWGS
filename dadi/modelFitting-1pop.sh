@@ -26,8 +26,12 @@ species=$4
 ######### COUNT INDIVS ##########
 #################################
 
-num_indiv=`tail -n +1 $dadi | wc -l`
-
+# pick any random line and sum up the number of individuals there
+num_one=`head dadi/data/pv_mono/dadi_input/pv_mono.syn.dadi | tail -1 | cut -f4`
+num_two=`head dadi/data/pv_mono/dadi_input/pv_mono.syn.dadi | tail -1 | cut -f6`
+num_indiv=$(($num_one + $num_two)) # get the total number of individuals in this dadi file
+num_proj=$(($num_indiv / 2)) # divide that number by two to get the number of projections
+	# doing this because my afs is folded because I do not have ancestral data
 
 ###################################
 ## MKDIR & CLEANUP LEFTOVER DATA ##
@@ -47,7 +51,7 @@ rm $wkdir/*
 
 eval `/nas02/apps/Modules/$MODULE_VERSION/bin/modulecmd bash list`
 eval `/nas02/apps/Modules/$MODULE_VERSION/bin/modulecmd bash remove python`
-eval `/nas02/apps/Modules/$MODULE_VERSION/bin/modulecmd bash load python`
+eval `/nas02/apps/Modules/$MODULE_VERSION/bin/modulecmd bash load python/2.6.5` # has an older version of numpy for now
 eval `/nas02/apps/Modules/$MODULE_VERSION/bin/modulecmd bash list` # sanity check for python version
 
 
@@ -56,13 +60,15 @@ eval `/nas02/apps/Modules/$MODULE_VERSION/bin/modulecmd bash list` # sanity chec
 ###################################
 
 ## run the models
-for rep in {1..3}
+for rep in {1..100}
 do
 
 bsub python dadi/1-pop.py \
 	--dadi $dadi \
-	--projection $num_indiv \
+	--projection $num_proj \
 	--outDir $wkdir \
 	--outName $outname
+
+sleep 1 # slows down job submission to reduce chance of I/O clobbering each other
 
 done

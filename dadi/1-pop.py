@@ -9,10 +9,8 @@
 """
 
 import sys
-sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/dadi-1.6.3-py2.6-linux-x86_64.egg')
-sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/dadi-1.6.3-py2.6-linux-x86_64.egg/dadi')
+sys.path.append('/nas02/home/p/r/prchrist/lib/python2.6/site-packages/dadi-1.7.0-py2.6-linux-x86_64.egg')
 sys.path.append('/proj/julianog/users/ChristianP/cambodiaWGS/dadi') # needed to get to mydemos
-sys.path.insert(1, '/nas02/home/p/r/prchrist/lib/python2.6/site-packages/numpy-1.9.0/numpy ')
 
 import numpy
 import dadi
@@ -35,6 +33,9 @@ args = parser.parse_args()
 '''
 	Housekeeping
 '''
+
+# for testing # dd = dadi.Misc.make_data_dict("dadi/data/pv_mono/dadi_input/pv_mono.syn.dadi")
+# for testing # fs = dadi.Spectrum.from_data_dict(dd, pop_ids = ["Pop1"], projections = [35], polarized=False)
 
 dd = dadi.Misc.make_data_dict(args.dadi)
 fs = dadi.Spectrum.from_data_dict(dd, pop_ids = [args.pop1name], projections = [args.projection], polarized=False)
@@ -63,6 +64,7 @@ llBG = dadi.Inference.ll(BGmod, fs)
 
 ## open out file
 ISO_OUT = open(args.outDir + args.outName + '.bg.fit', "a")
+	# for testing # ISO_OUT = open("dadi/something_special/" + "test" + '.bg.fit', "a")
 ISO_OUT.write("llBG\tthetaBG\tetaD\tetaG\tT\n")
 ISO_OUT.write("%s\t%s\t%s\t%s\t%s\n" % (llBG, thetaBG, poptBG[0], poptBG[1], poptBG[2]))
 ISO_OUT.close()
@@ -97,6 +99,7 @@ llPOSG = dadi.Inference.ll(POSGmod, fs)
 
 ## open out file
 ISO_OUT = open(args.outDir + args.outName + '.posg.fit', "a")
+	# for testing # ISO_OUT = open("dadi/something_special/" + "test" + '.posg.fit', "a")
 ISO_OUT.write("llPOSG\tthetaPOSG\teta\tT\n")
 ISO_OUT.write("%s\t%s\t%s\t%s\n" % (llPOSG, thetaPOSG, poptPOSG[0], poptPOSG[1]))
 ISO_OUT.close()
@@ -122,6 +125,7 @@ llNEGG = dadi.Inference.ll(NEGGmod, fs)
 
 ## open out file
 ISO_OUT = open(args.outDir + args.outName + '.negg.fit', "a")
+	# for testing # ISO_OUT = open("dadi/something_special/" + "test" + '.negg.fit', "a")
 ISO_OUT.write("llNEGG\tthetaNEGG\teta\tT\n")
 ISO_OUT.write("%s\t%s\t%s\t%s\n" % (llNEGG, thetaNEGG, poptNEGG[0], poptNEGG[1]))
 ISO_OUT.close()
@@ -147,6 +151,7 @@ llSNM = dadi.Inference.ll(SNMmod, fs)
 
 ## open out file
 ISO_OUT = open(args.outDir + args.outName + '.snm.fit', "a")
+	# for testing # ISO_OUT = open("dadi/something_special/" + "test" + '.snm.fit', "a")
 ISO_OUT.write("llNEGG\tthetaNEGG\n")
 ISO_OUT.write("%s\t%s\n" % (llSNM, thetaSNM))
 ISO_OUT.close()
