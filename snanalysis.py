@@ -11,21 +11,71 @@ workdir: '/proj/julianog/users/ChristianP/cambodiaWGS/'
 rule all:
 	#input: 'Fws/fws.svg'
 	#input: 'adegenet/grey_pca.svg'
-	#input: 'selscan/pv_all.svg'
-	#input: 'selscan/pf_all.svg'
-	#input: 'selscan/pv_mono.svg'
-	#input: 'selscan/pf_cp2.svg'
 	#input: 'dadi/data/pv_all/dadi_output_afs/pv_all.afs'
 	#input: 'dadi/data/pv_mono/dadi_output_afs/pv_mono.afs'
 	#input: 'dadi/data/pf_all/dadi_output_afs/pf_all.afs'
 	#input: 'dadi/data/pf_cp2/dadi_output_afs/pf_cp2.afs'
 	#input: 'dadi/data/pfall_pvall.svg'
 	#input: 'dadi/modelFitting/pv_mono/pv_mono.bg.fit'
-	input: 'dadi/modelFitting/pv_all/pv_all.bg.fit'
+	#input: 'dadi/modelFitting/pv_all/pv_all.bg.fit'
 	#input: 'dadi/modelFitting/pf_cp2/pf_cp2.bg.fit'
 	#input: 'dadi/modelFitting/pf_all/pf_all.bg.fit'
+	#input: 'geneticMap/pf_cp2/logfile'
+## SELSCAN IHS
+	#input: 'selscan/ihs/pv_mono.svg'
+	#input: 'selscan/ihs/pv_all.svg'
+	#input: 'selscan/ihs/pf_cp2.svg'
+	#input: 'selscan/ihs/pf_all.svg'
+## SELSCAN nSL
+	#input: 'selscan/nsl/pv_all.svg'
+	#input: 'selscan/nsl/pf_all.svg'
+	#input: 'selscan/nsl/pv_mono.svg'
+	#input: 'selscan/nsl/pf_cp2.svg'
+## SELSCAN EHH
+	#input: 'selscan/ehh/pv_chr14_797870'
+	input: 'selscan/ehh/pf_chr11_1294584'
 
 
+#######################
+##### SELSCAN EHH #####
+#######################
+
+rule pv_mono_chr14_797870:
+	input: vcf = '/proj/julianog/users/ChristianP/cambodiaWGS/selscan/nsl/pv_mono/chr14.vcf', map = '/proj/julianog/users/ChristianP/cambodiaWGS/selscan/ihs/pv_mono/14.map'
+	output: 'selscan/ehh/pv_chr14_797870'
+	shell: 'bash selscan/ehh/ehhRunner.sh locus1511 {input.vcf} {input.map} {output}'
+
+rule pf_cp2_chr11_1294584:
+	input: vcf = '/proj/julianog/users/ChristianP/cambodiaWGS/selscan/nsl/pf_cp2/chr11.vcf', map = '/proj/julianog/users/ChristianP/cambodiaWGS/selscan/ihs/pf_cp2/11.map'
+	output: 'selscan/ehh/pf_chr11_1294584'
+	shell: 'bash selscan/ehh/ehhRunner.sh locus214 {input.vcf} {input.map} {output}'
+
+
+#######################
+##### SELSCAN iHS #####
+#######################
+## RUN ONE-AT-A-TIME ##
+#######################
+
+rule iHS_pf_all:
+	input: vcf = '/proj/julianog/users/ChristianP/cambodiaWGS/pf/variants/our_goods_UG.pass.vcf'
+	output: 'selscan/ihs/pf_all.svg'
+	shell: 'bash selscan/ihs/iHScalc.sh {input.vcf} pf_all pf 0.35'
+
+rule iHS_pf_cp2:
+	input: vcf = '/proj/julianog/users/ChristianP/cambodiaWGS/pf/variants/cp2.pass.recode.vcf'
+	output: 'selscan/ihs/pf_cp2.svg'
+	shell: 'bash selscan/ihs/iHScalc.sh {input.vcf} pf_cp2 pf 0.20' # guessing, but don't know that we want to minimize this cutoff
+
+rule iHS_pv_all:
+	input: vcf = '/proj/julianog/users/ChristianP/cambodiaWGS/pv/variants/our_goods_UG.pass.vcf'
+	output: 'selscan/ihs/pv_all.svg'
+	shell: 'bash selscan/ihs/iHScalc.sh {input.vcf} pv_all pv 0.05'
+
+rule iHS_pv_mono:
+	input: vcf = '/proj/julianog/users/ChristianP/cambodiaWGS/pv/variants/mono.pass.recode.vcf'
+	output: 'selscan/ihs/pv_mono.svg'
+	shell: 'bash selscan/ihs/iHScalc.sh {input.vcf} pv_mono pv 0.05'
 
 
 
@@ -117,26 +167,28 @@ rule dadi_format_pv_mono:
 #######################
 ##### SELSCAN NSL #####
 #######################
+## RUN ONE-AT-A-TIME ##
+#######################
 
 rule nsl_pf_cp2:
 	input: vcf = 'pf/variants/cp2.pass.recode.vcf'
-	output: 'selscan/pf_cp2.svg'
-	shell: 'bash selscan/nslRunner.sh {input.vcf} pf_cp2 pf'
+	output: 'selscan/nsl/pf_cp2.svg'
+	shell: 'bash selscan/nsl/nslRunner.sh {input.vcf} pf_cp2 pf'
 
 rule nsl_pf_all:
 	input: vcf = 'pf/variants/our_goods_UG.pass.vcf'
-	output: 'selscan/pf_all.svg'
-	shell: 'bash selscan/nslRunner.sh {input.vcf} pf_all pf'
+	output: 'selscan/nsl/pf_all.svg'
+	shell: 'bash selscan/nsl/nslRunner.sh {input.vcf} pf_all pf'
 
 rule nsl_pv_mono:
 	input: vcf = 'pv/variants/mono.pass.recode.vcf'
-	output: 'selscan/pv_mono.svg'
-	shell: 'bash selscan/nslRunner.sh {input.vcf} pv_mono pv'
+	output: 'selscan/nsl/pv_mono.svg'
+	shell: 'bash selscan/nsl/nslRunner.sh {input.vcf} pv_mono pv'
 
 rule nsl_pv_all:
 	input: vcf = 'pv/variants/our_goods_UG.pass.vcf'
-	output: 'selscan/pv_all.svg'
-	shell: 'bash selscan/nslRunner.sh {input.vcf} pv_all pv'
+	output: 'selscan/nsl/pv_all.svg'
+	shell: 'bash selscan/nsl/nslRunner.sh {input.vcf} pv_all pv'
 
 #######################
 ##### ADEGENET PCA ####
