@@ -1,5 +1,6 @@
 """
 	Python script to fit one-population
+	0. No Growth
 	1. Expansion
 	2. Contraction
 	3. Bottleneck
@@ -70,7 +71,14 @@ ISO_OUT.write("%s\t%s\t%s\t%s\t%s\n" % (llBG, thetaBG, poptBG[0], poptBG[1], pop
 ISO_OUT.close()
 
 '''
-	Positive Growth
+   Positive Exponential Growth
+
+nu: Ratio of contemporary to ancient population size
+T: Time in the past at which growth began (in units of 2*Na
+   generations)
+n1: Number of samples in resulting SFS
+pts: Number of grid points to use in integration.
+
 '''
 
 POSGmod = dadi.Demographics1D.growth
@@ -105,7 +113,7 @@ ISO_OUT.write("%s\t%s\t%s\t%s\n" % (llPOSG, thetaPOSG, poptPOSG[0], poptPOSG[1])
 ISO_OUT.close()
 
 '''
-	Negative Growth
+	Negative Exponential Growth
 '''
 
 NEGGmod = dadi.Demographics1D.growth
@@ -131,7 +139,7 @@ ISO_OUT.write("%s\t%s\t%s\t%s\n" % (llNEGG, thetaNEGG, poptNEGG[0], poptNEGG[1])
 ISO_OUT.close()
 
 '''
-	No population growth
+	No population growth aka standard neutral model
 '''
 
 SNMmod = dadi.Demographics1D.snm
@@ -154,5 +162,48 @@ ISO_OUT = open(args.outDir + args.outName + '.snm.fit', "a")
 	# for testing # ISO_OUT = open("dadi/something_special/" + "test" + '.snm.fit', "a")
 ISO_OUT.write("llNEGG\tthetaNEGG\n")
 ISO_OUT.write("%s\t%s\n" % (llSNM, thetaSNM))
+ISO_OUT.close()
+
+''' Positive Two Epoch Growth--Instantaneous size change some time ago
+nu: Ratio of contemporary to ancient population size
+T: Time in the past at which size change happened (in units of 2*Na
+   generations)
+n1: Number of samples in resulting SFS
+pts: Number of grid points to use in integration
+NFB edited 8 March 2016
+'''
+
+####Essentially copied and pasted from positive growth with the renaming of the var for Two Epoch Model
+####My sense is that these initial parameters should all stay the same. Difference is in growth function/formula not population size/SFS?
+
+EPOCHGmod = dadi.Demographics1D.two_epoch
+EPOCHG_ex = dadi.Numerics.make_extrap_log_func(EPOCHGmod)
+# This extrapolates to an infinitely fine grid
+
+upperEPOCHG = [100, 5]
+# Specify the upper bound for the two parameters in the EPOCHG model, would this be any different from POSG????
+# These might be etaG (growth effect size) and T (time ago)
+lowerEPOCHG = [1, 0.01]
+startEPOCHG = [10, 0.75]
+p0EPOCHG = dadi.Misc.perturb_params(startEPOCHG, fold=1, upper_bound=upperEPOCHG)
+# p0 is the initial parameter set; looks like an array
+
+poptEPOCHG = dadi.Inference.optimize_log(p0EPOCHG, fs, EPOCHG_ex, pts_l, verbose = False, lower_bound = lowerEPOCHG, upper_bound = upperEPOCHG, maxiter = 20, epsilon = 1e-6)
+# "popt" = optimized parameters
+# A general purpose parameter optimizer.
+# Seems like this is exploring the parameter space
+
+EPOCHGmod = EPOCHG_ex(poptEPOCHG, sample_sizes, pts_l)
+# This makes a simulated frequency spectrum: parameters, sample size, and array of grids
+thetaEPOCHG = dadi.Inference.optimal_sfs_scaling(EPOCHGmod, fs)
+EPOCHGmod *= thetaPOSG
+llEPOCHG = dadi.Inference.ll(EPOCHGmod, fs)
+# Poisson log likelihood; first term is model and second term is data
+
+## open out file
+ISO_OUT = open(args.outDir + args.outName + '.two_epoch_epochg.fit', "a")
+   # for testing # ISO_OUT = open("dadi/something_special/" + "test" + '.posg.fit', "a")
+ISO_OUT.write("llEPOCHG\tthetaEPOCHG\teta\tT\n")
+ISO_OUT.write("%s\t%s\t%s\t%s\n" % (llEPOCHG, thetaEPOCHG, poptEPOCHG[0], poptEPOCHG[1]))
 ISO_OUT.close()
 
