@@ -9,8 +9,8 @@
 ###### PARAMETERS ######
 ########################
 
-#vcf2use=our_goods_pf.pass.vcf
-vcf2use=our_goods_UG.pass80%.vcf
+vcf2use=our_goods_pf.pass.vcf
+#vcf2use=our_goods_UG.pass80%.vcf
 
 ########################
 ## CP POINT ESTIMATES ##
@@ -27,8 +27,8 @@ vcftools --vcf $vcf2use \
 ## calculate LD
 vcftools --vcf pointestimates/vcfs/our.pf.cp$i.recode.vcf \
 	--hap-r2 \
-	--ld-window-bp 200000 \
-	--out pointestimates/ld/cp$i.ld.1-200000
+	--ld-window-bp 100000 \
+	--out pointestimates/ld/cp$i.ld.1-100000
 
 done
 
@@ -42,8 +42,8 @@ do
 
 	## sample without replacement
 	## sampling with replacement is impossible with vcftools
-	## pull 18 isolates
-	shuf -n18 cp_groups/all.txt >> bootstrap/boot/boot$strap.txt
+	## pull 17 isolates
+	shuf -n17 cp_groups/all.txt >> bootstrap/boot/boot$strap.txt
 
 	## subsample the VCF
 	vcftools --vcf $vcf2use \
@@ -54,8 +54,8 @@ do
 	## calculate LD stats
 	vcftools --vcf bootstrap/vcfs/boot$strap.recode.vcf \
 		--hap-r2 \
-		--ld-window-bp 200000 \
-		--out bootstrap/ld/boot$strap.ld.1-200000
+		--ld-window-bp 100000 \
+		--out bootstrap/ld/boot$strap.ld.1-100000
 
 echo $strap
 done

@@ -21,7 +21,7 @@ plot.bin <- function(LDdf, nbins, binsize, color) {
     xline <- append(xline, window)
     yline <- append(yline, mean(LDdf[LDdf$diff >= offset & LDdf$diff < window,]$R.2, na.rm = TRUE))
   }
-  lines(xline, yline, col = color, lwd = 2)
+  lines(xline, yline, col = color, lwd = 3)
 }
 
 # Function calculates distance, sorts, fits a regression, and plots
@@ -84,10 +84,10 @@ boot.outline <- function(LDdf, nbins, binsize) {
 ############ INPUT DATA ############
 ####################################
 
-ld1 <- read.table("pointestimates/ld/cp1.ld.1-200000.hap.ld", header = TRUE)
-ld2 <- read.table("pointestimates/ld/cp2.ld.1-200000.hap.ld", header = TRUE)
-ld3 <- read.table("pointestimates/ld/cp3.ld.1-200000.hap.ld", header = TRUE)
-ld4 <- read.table("pointestimates/ld/cp4.ld.1-200000.hap.ld", header = TRUE)
+ld1 <- read.table("pointestimates/ld/cp1.ld.1-100000.hap.ld", header = TRUE)
+ld2 <- read.table("pointestimates/ld/cp2.ld.1-100000.hap.ld", header = TRUE)
+ld3 <- read.table("pointestimates/ld/cp3.ld.1-100000.hap.ld", header = TRUE)
+ld4 <- read.table("pointestimates/ld/cp4.ld.1-100000.hap.ld", header = TRUE)
 
 ldpv <- read.table("pv-10000.hap.ld", header = TRUE)
 
@@ -107,9 +107,9 @@ bootstrap_files <- lapply(bootstrap_names, read.table, header = TRUE)
 
 ## Setup plot coordinates
 plot(ld2$POS2-ld2$POS1, ld2$R.2, 
-     type = "n", xlim = c(0,200000), axes = FALSE, 
+     type = "n", xlim = c(0,100000), axes = FALSE, 
      xlab = "Pairwise Coordinate Distance", ylab = expression(italic(r^2)))
-axis(1)
+axis(1, at = c(0, 25000, 50000, 75000, 100000))
 axis(2, las = 2)
 
 ## Slim bootstraps
@@ -125,7 +125,7 @@ plot.bin(ld2, 200, 1000, "firebrick3")
 #plot.bin(ld3, 200, 1000, "red")
 plot.bin(ld4, 200, 1000, "goldenrod2")
 
-legend(140000, 0.6, 
+legend(80000, 0.55, 
        legend = c("CP1", "CP2", "CP4", "Bootstraps"), 
        col = c("cadetblue1", "firebrick3", "goldenrod2", "gray"), 
        lty=c(1, 1, 1, 1),
