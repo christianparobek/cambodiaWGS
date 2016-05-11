@@ -12,12 +12,12 @@ nick=/proj/julianog/users/NickB/Projects/cambodiaWGS/data\&output
 ######### For P. vivax #########
 ################################
 
-grep "gene\|##" $pv_gff | grep -v "AAKM\|NC\|FASTA" > PvSal1_genes.gff
+grep "Pv_Sal1_chr\|##" $pv_gff | grep -v "AAKM\|NC\|FASTA\|^>" > PvSal1_features.gff
 	## First, make a GFF with only gene entries and header
 	## Excluding entries on AAKM contigs, mito, and the random "FASTA" line
 
 
-bedtools intersect -v -a PvSal1_genes.gff -b $nick/subtelo_60k_altered.bed |\
+bedtools intersect -v -a PvSal1_features.gff -b $nick/subtelo_60k_altered.bed |\
  bedtools intersect -v -a "stdin" -b $nick/neafseyExclude_altered.bed > PvSal1_filtered.gff
 	## Then remove subtelomeres and Neafsey genes
 	## Then make sure to paste back in the header
@@ -34,11 +34,11 @@ done
 ####### For P. falciparum #######
 #################################
 
-grep "gene\|##" $pf_gff | grep -v "IRAB\|M76611\|FASTA" > Pf3D7_genes.gff
+grep "Pf3D7_\|##" $pf_gff | grep -v "IRAB\|M76611\|FASTA" > Pf3D7_features.gff
 	## First, make a GFF with only gene entries and header
 	## Excluding entries on AAKM contigs, mito, and the random "FASTA" line
 
-bedtools intersect -v -a Pf3D7_genes.gff -b $nick/subtelomeres_pf3d7.bed |\
+bedtools intersect -v -a Pf3D7_features.gff -b $nick/subtelomeres_pf3d7.bed |\
  bedtools intersect -v -a "stdin" -b $nick/VAR_STEVOR_RIFIN_pf3d7.bed > Pf3D7_filtered.gff
 	## Then remove subtelomeres and Neafsey genes
 	## Then make sure to paste back in the header
