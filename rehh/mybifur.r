@@ -1,4 +1,4 @@
-my.bifurcation.diagram<-function(haplohh,mrk_foc,all_foc=1,nmrk_l=10,nmrk_r=10,limhapcount=10,refsize=0.1,linecol="blue",main_leg=NA,xlab_leg="Position"){
+my.bifurcation.diagram<-function(haplohh,mrk_foc,all_foc=1,nmrk_l=10,nmrk_r=10,limhapcount=10,refsize=0.1,linecol="blue",main_leg=NA,xlab_leg=""){
   
   #if(!(is.haplohh(haplohh))){stop("Data oject is not of valid haplohh object... (see data2haplohh() function)")}
   if(nmrk_l<0 | nmrk_r<0){stop("nmrk_l and nmrk_r must be positive or null")}
