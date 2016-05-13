@@ -42,7 +42,7 @@ cutoff.getter <- function(frac, big){
 
 manhattan.plot <- function(big, cutoff, spp_chr_metadata, analysis_name){
   plot(big$V2, abs(big$V7), col = as.factor(big$V9), pch = 20, cex = 0.05, las = 1, axes = FALSE, ylab = "", xlab = "")
-  points(big[abs(big$V7) >= cutoff,]$V2, abs(big[abs(big$V7) >= cutoff,]$V7), pch = 20, cex = 0.35, col = "red") # highlight the top x percent
+  points(big[abs(big$V7) >= cutoff,]$V2, abs(big[abs(big$V7) >= cutoff,]$V7), pch = 20, cex = 0.35, col = "#d95f02") # highlight the top x percent
   axis(1, at = apply(spp_chr_metadata, 1, function(x) as.numeric(x[4]) + 0.5*as.numeric(x[2])), labels = 1:14, cex.axis = 0.7) # put ticks at medians
   axis(2, las = 1, cex.axis = 0.8)
   mtext("Chromosome", 1, line = 2.5)
@@ -90,21 +90,30 @@ pf_cp2_nsl_cutoff <- cutoff.getter(frac, pf_cp2_nsl_big)
 
 
 
-svg("combined.svg", width = 6, height = 8)
-tiff("combined.tiff", width = 6, height = 8, units = "in", res = 300, compression = "lzw")
+svg("mono_all_cp2_nsl_ihs.svg", width = 5, height = 8)
 
-palette(c("bisque4","darkcyan"))
-par(mfrow = c(3,1), mar = c(4,5,1,0))
+#palette(c("bisque4","darkcyan"))
+palette(c("gray50","#1b9e77")) # bisque4
 
+par(mfrow = c(3,1))
+mar = c(4,5,2,0)
 manhattan.plot(pv_all_nsl_big, pv_all_nsl_cutoff, pv_len, expression(italic("P. vivax nS")[L]))
-mtext("A", 2, line = 3.3, las = 2, cex = 1.8, padj = -3.5)
-
+mtext("A", 2, line = 2.7, las = 2, cex = 1.6, padj = -5)
+mar = c(4,5,1,0)
 manhattan.plot(pv_mono_ihs_big, pv_mono_ihs_cutoff, pv_len, expression(paste(italic("P. vivax"), " iHS")))
-mtext("B", 2, line = 3.3, las = 2, cex = 1.8, padj = -3.5)
-
+mtext("B", 2, line = 2.7, las = 2, cex = 1.6, padj = -5)
+mar = c(4,5,1,0)
 manhattan.plot(pf_cp2_nsl_big, pf_cp2_nsl_cutoff, pf_len, expression(italic("P. falciparum nS")[L]))
-mtext("C", 2, line = 3.3, las = 2, cex = 1.8, padj = -3.5)
-
+mtext("C", 2, line = 2.7, las = 2, cex = 1.6, padj = -5)
 
 dev.off()
+
+
+### Pf CP2 only!!
+svg("pf_cp2_nsl.svg", width = 5, height = 3.5)
+mar = c(4,5,1,0)
+manhattan.plot(pf_cp2_nsl_big, pf_cp2_nsl_cutoff, pf_len, expression(italic("P. falciparum nS")[L]))
+dev.off()
+
+svg("pf_")
 
