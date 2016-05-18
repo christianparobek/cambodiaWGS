@@ -1,6 +1,6 @@
 # For genetic analysis of my WGS Plasmodium population(s)
 # Started 10 Dec 2014
-# Updated 01 May 2015
+# Updated 17 March 2016
 # Basics Tutorial: http://adegenet.r-forge.r-project.org/files/tutorial-basics.pdf
 # Genomics Tutorial: http://adegenet.r-forge.r-project.org/files/tutorial-genomics.pdf
 # Extra Commands: http://www.inside-r.org/packages/cran/adegenet/docs/.rmspaces
@@ -45,165 +45,232 @@ pop.definer <- function(ind_names) {
   return(pops)
 }
 
-## Function to plot eigenplots
-eig.plotter <- function(pca) {
-  barplot(pca$eig, xlab = "", ylab = "Variance")
+## Function to plot eigenplots, ggstyle
+eig.plotter.gg <- function(pca, plotname, ylim){
+  
+  for_bar <- as.data.frame(pca$eig)
+  # convert to a data frame
+  for_bar$index <- 1:nrow(for_bar)
+  # add a counter column
+  names(for_bar) <- c("value", "index")
+  # make names reasonable
+  for_bar$value <- for_bar$value/sum(for_bar$value)*100
+  # convert values to fraction of whole
+  
+  a_plot <- ggplot(for_bar, aes(x = index, y = value)) + geom_bar(stat = "identity") + params + 
+    labs(
+      x = "Principal component",
+      y = "Percent of variance explained") +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank()) + 
+    ggtitle(plotname) + scale_y_continuous(limits = c(0, ylim))
+  
+  return(a_plot)
 }
 
-## Function to plot PCAs
-pca.plotter <- function(pca, pops, x, y) {
-  plot(jitter(pca$scores[,y], factor=700) ~ jitter(pca$scores[,x], factor=700), 
-     col=pops, 
-     pch=19, 
-     axes=FALSE, 
-     xlab=paste("PC", x, " - ", round(pca$eig[x]/sum(pca$eig)*100), "% of the Variance", sep = ""),
-     ylab=paste("PC", y, " - ", round(pca$eig[y]/sum(pca$eig)*100), "% of the Variance", sep = ""),
-  )
-  axis(1)
-  axis(2)
+## Function to plot PCAs - color
+ggcolor <- function(pca, plotname, pops, PCx, PCy) {
+  pic <- ggplot(as.data.frame(pca$scores), aes_string(x=colnames(pca$scores)[PCx], y=colnames(pca$scores)[PCy])) + 
+    geom_point(alpha=0.8, size = 4, color = factor(pops)) + 
+    params +
+    ggtitle(plotname) +
+    labs(
+      x = paste("PC", PCx, " - ", round(pca$eig[PCx]/sum(pca$eig)*100), "% of total variance", sep = ""),
+      y = paste("PC", PCy, " - ", round(pca$eig[PCy]/sum(pca$eig)*100), "% of total variance", sep = ""))
+  return(pic)
 }
-
-
 
 
 ##############################################################
-################# ggPlot Style Pv and Pf pic #################
+################# READ IN DATA AND CALC PCAS #################
 ##############################################################
+
+## READ ARGS FROM COMMAND LINE
+args = commandArgs(trailingOnly=TRUE)
 
 ## read in PV data
-setwd("/run/user/1000/gvfs/sftp:host=kure.unc.edu,user=prchrist/proj/julianog/users/ChristianP/cambodiaWGS/pv/variants/")
-pv_cam_gl <- genlight.maker("our_goods_UG.pass.vcf.2") # make genlight; vcf must not contain extra contigs
+pv_cam_gl <- genlight.maker(args[1]) # make genlight; vcf must not contain extra contigs
+#pv_cam_gl <- genlight.maker("our_goods_pv.pass.sansAAKM.vcf")
 pv_cam_pops <- pop.definer(indNames(pv_cam_gl)) # define pops
-pv_cam_pca <- glPca(pv_cam_gl) # calculate PCA
+pv_cam_pca <- glPca(pv_cam_gl, nf = 4) # calculate PCA
 
 ## read in PF data
-setwd("/run/user/1001/gvfs/sftp:host=kure.unc.edu,user=prchrist/proj/julianog/users/ChristianP/cambodiaWGS/pf/variants/")
-pf_cam_gl <- genlight.maker("our_goods_UG.pass.vcf") # make genlight
+pf_cam_gl <- genlight.maker(args[2]) # make genlight
+#pf_cam_gl <- genlight.maker("our_goods_pf.pass.vcf")
 pf_cam_pops <- pop.definer(indNames(pf_cam_gl)) # define pops
-pf_cam_pca <- glPca(pf_cam_gl) # calculate PCA
-pf_cam_pca_jit <- as.data.frame(jitter(pf_cam_pca$scores, factor=700))
-# and make a copy with some jitter
-
-
-
-pv <- ggplot(as.data.frame(pv_cam_pca$scores), aes(x=PC1, y=PC2)) + 
-  geom_point(alpha=0.6, size = 4) + 
-  theme_bw() +
-  ggtitle(expression(italic("P. vivax"))) +
-  theme(
-    axis.text = element_text(size = 13),
-    axis.title = element_text(size = 13),
-    legend.position = "none") +
-  scale_size_continuous(range = c(2,9)) +
-  labs(
-    x = paste("PC", 1, " - ", round(pv_cam_pca$eig[1]/sum(pv_cam_pca$eig)*100), "% of the Variance", sep = ""),
-    y = paste("PC", 2, " - ", round(pv_cam_pca$eig[2]/sum(pv_cam_pca$eig)*100), "% of the Variance", sep = "")
-  )
-
-
-pf <- ggplot(pf_cam_pca_jit, aes(x=PC1, y=PC2)) + 
-  geom_point(alpha=0.6, size = 4) + 
-  theme_bw() +
-  ggtitle(expression(italic("P. falciparum"))) +
-  theme(
-    axis.text = element_text(size = 13),
-    axis.title = element_text(size = 13),
-    legend.position = "none") +
-  scale_size_continuous(range = c(2,9)) +
-  labs(
-    x = paste("PC", 1, " - ", round(pf_cam_pca$eig[1]/sum(pf_cam_pca$eig)*100), "% of the Variance", sep = ""),
-    y = paste("PC", 2, " - ", round(pf_cam_pca$eig[2]/sum(pf_cam_pca$eig)*100), "% of the Variance", sep = "")
-  )
-
-
-grid.arrange(pf, pv, ncol=2)
-
+pf_cam_pca <- glPca(pf_cam_gl, nf = 4) # calculate PCA
 
 
 ##############################################################
-################# Plasmodium vivax Cambodia ##################
+################# DEFINE SUBGROUP MEMBERSHIP #################
 ##############################################################
 
-### PREPARE DATA FOR ANALYSIS ###
-pv_cam_gl <- genlight.maker("/run/user/1001/gvfs/sftp:host=kure.unc.edu,user=prchrist/proj/julianog/users/ChristianP/cambodiaWGS/pv/variants/our_goods_UG.pass.vcf") # make genlight
-pv_cam_pops <- pop.definer(indNames(pv_cam_gl)) # define pops
-pv_cam_pca <- glPca(pv_cam_gl) # calculate PCA
+######### FALCIPARUM #########
 
-### PLOT EIGENVALUES ###
-eig.plotter(pv_cam_pca)
-title(substitute(paste("Cambodia ", italic('P. vivax'), " Eigenvalues" )), line = 0.5, cex.main = 1.5)
+## define CP2 pops
+cp_grps <- read.table("cp_groups")
+cp_grps$V2[cp_grps$V2 == 3] <- 1 # make CP1,3,4 all same value
+cp_grps$V2[cp_grps$V2 == 4] <- 1# make CP1,3,4 all same value
 
-### PLOT PCA PICTURE ###
-pca.plotter(pv_cam_pca, pv_cam_pops, 1, 2)
-legend(10, -40, legend = c("BB", "KP", "OM"), col = c("red", "black", "green3"), pch=19, bty="n", cex=1.5)
-title(substitute(paste("Cambodia ", italic('P. vivax'), " PCA" )), line = -0.5, cex.main=1.5)
+## fix SN084 name
+row.names(pf_cam_pca$scores)[row.names(pf_cam_pca$scores) == "SN084"] <- "SN094" 
 
-### DAPC ANALYSIS ###
+## match order between key and pca scores
+pf_ord_names <- row.names(pf_cam_pca$scores)
+pf_grp_names <- as.character(cp_grps$V1)
+pf_key <- match(pf_ord_names, pf_grp_names)
+cp_grp_membership <- cp_grps$V2[pf_key]
 
+######### VIVAX #########
 
-############################################################
-################# Plasmodium vivax Global ##################
-############################################################
-
-### PREPARE DATA FOR ANALYSIS ###
-pv_all_gl <- genlight.maker("all_goods_pv.pass.str") # make genlight
-pv_all_pops <- pop.definer(indNames(pv_all_gl)) # define pops
-pv_all_pca <- glPca(pv_all_gl) # calculate PCA
-
-### PLOT EIGENVALUES ###
-eig.plotter(pv_all_pca)
-title(substitute(paste("Global ", italic('P. vivax'), " Eigenvalues" )), line = 0.5, cex.main = 1.5)
-
-### PLOT PCA PICTURE ###
-pca.plotter(pv_all_pca, pv_all_pops, 1, 2)
-legend(-60, 85, legend = c("BB", "KP", "OM", "Global"), col = c("red", "black", "green3", "blue"), pch=19, bty="n", cex=1.5)
-title(substitute(paste("Global ", italic('P. vivax'), " PCA" )), line = -1.5, cex.main=1.5)
+mono_grps <- read.table("monos")
+moi_status <- mono_grps$V2
+  # monos is already in the same order as pca
 
 
 ##############################################################
-############## Plasmodium falciparum Cambodia ################
+##################### SETUP GGPLOT THEME #####################
 ##############################################################
 
-### PREPARE DATA FOR ANALYSIS ###
-pf_cam_gl <- genlight.maker("/run/user/1001/gvfs/sftp:host=kure.unc.edu,user=prchrist/proj/julianog/users/ChristianP/cambodiaWGS/pf/variants/our_goods_UG.pass.vcf") # make genlight
-pop(pf_cam_gl) <- pop.definer(indNames(pf_cam_gl)) # define pops
-pf_cam_pca <- glPca(pf_cam_gl) # calculate PCA
-
-### PLOT EIGENVALUES ###
-eig.plotter(pf_cam_pca)
-title(substitute(paste("Cambodia ", italic('P. falciparum'), " Eigenvalues" )), line = 0.5, cex.main = 1.5)
-
-### PLOT PCA PICTURE ###
-pca.plotter(pf_cam_pca, pop(pf_cam_gl), 1, 2)
-title(substitute(paste("Cambodia ", italic('P. falciparum'), " PCA" )), line = -0.5, cex.main=1.2)
-legend(-12, -2, legend = c("BB", "KP", "OM"), col = c("red", "black", "green3"), pch=19, bty="n", cex=1.2)
-
-### DAPC ###
-pf_cam_dapc <- dapc(pf_cam_gl, n.pca = 10, n.da = 1)
-scatter(pf_cam_dapc, scree.da=FALSE)
-
-
-### Minor Allele Frequency ###
-pf_cam_maf <- glMean(pf_cam_gl)
-hist(pf_cam_maf, proba = TRUE, col =  "gold", xlab = "Allele frequencies", main = "Minor allele frequencies")
-pf_cam_maf_density <- density(pf_cam_maf)
-lines(pf_cam_maf_density$x, pf_cam_maf_density$y, lwd = 3)
+## Define basic plotting parameters
+params <-  theme_bw() + 
+  theme(axis.text = element_text(size = 13), 
+        axis.title = element_text(size = 13), 
+        legend.position = "none")
 
 
 ##############################################################
-############### Plasmodium falciparum Global #################
+################# ADD CONSISTENT JITTER TO PF ################
 ##############################################################
 
-### PREPARE DATA FOR ANALYSIS ###
-pf_all_gl <- genlight.maker("all_goods_pf.pass.str") # make genlight
-pf_all_pops <- pop.definer(indNames(pf_all_gl)) # define pops
-pf_all_pca <- glPca(pf_all_gl) # calculate PCA
+pf_pca_jitter <- pf_cam_pca
+pf_pca_jitter$scores <- as.data.frame(jitter(pf_pca_jitter$scores, factor = 700))
 
-### PLOT EIGENVALUES ###
-eig.plotter(pf_all_pca)
-title(substitute(paste("Global ", italic('P. falciparum'), " Eigenvalues" )), line = 0.5, cex.main = 1.5)
 
-### PLOT PCA PICTURE ###
-pca.plotter(pf_all_pca, pf_all_pops, 1, 2)
-legend(-50, -30, legend = c("BB", "KP", "OM", "Gambia"), col = c("red", "black", "green3", "blue"), pch=19, bty="n", cex=1.5)
-title(substitute(paste("Global ", italic('P. falciparum'), " PCA" )), line = -1.5, cex.main=1.5)
+##############################################################
+########### HIGHLIGHT CP2/MONOS & SHOW EIGENVECTORS ##########
+##############################################################
+
+#palette(c("gray50","#1b9e77"))
+palette(c("gray70","gray20"))
+  # define the palette
+
+######### PLOT SUBSET PCAs ######### 
+
+cp2 <- ggcolor(pf_pca_jitter, expression(italic("P. falciparum")), cp_grp_membership, 1, 2)
+monos <- ggcolor(pv_cam_pca, expression(italic("P. vivax")), mono_grps$V2, 1, 2)
+
+svg("subset.svg", width = 7, height = 3.6)
+grid.arrange(monos, cp2, ncol=2)
+grid.text("A", x = unit(0.03, "npc"), y = unit(0.95, "npc"), gp=gpar(fontsize=20))
+grid.text("B", x = unit(0.53, "npc"), y = unit(0.95, "npc"), gp=gpar(fontsize=20))
+dev.off()
+
+
+######### PLOT EIGENVALUES ######### 
+
+pf_eig <- eig.plotter.gg(pf_pca_jitter, expression(italic("P. falciparum")),30)
+pv_eig <- eig.plotter.gg(pv_cam_pca, expression(italic("P. vivax")), 2)
+
+svg("eigens.svg", width = 7, height = 3.4)
+grid.arrange(pv_eig, pf_eig, ncol=2)
+grid.text("A", x = unit(0.03, "npc"), y = unit(0.95, "npc"), gp=gpar(fontsize=20))
+grid.text("B", x = unit(0.53, "npc"), y = unit(0.95, "npc"), gp=gpar(fontsize=20))
+dev.off()
+
+
+######### PLOT EXTRA PCAs ######### 
+
+cp2_1_2 <- ggcolor(pf_pca_jitter, expression(italic("P. falciparum")), cp_grp_membership, 1, 2)
+cp2_1_3 <- ggcolor(pf_pca_jitter, expression(italic("P. falciparum")), cp_grp_membership, 1, 3)
+cp2_2_3 <- ggcolor(pf_pca_jitter, expression(italic("P. falciparum")), cp_grp_membership, 2, 3)
+
+mono_1_2 <- ggcolor(pv_cam_pca, expression(italic("P. vivax")), mono_grps$V2, 1, 2)
+mono_1_3 <- ggcolor(pv_cam_pca, expression(italic("P. vivax")), mono_grps$V2, 1, 3)
+mono_2_3 <- ggcolor(pv_cam_pca, expression(italic("P. vivax")), mono_grps$V2, 2, 3)
+
+svg("extra_pcs.svg", width = 6, height = 9)
+grid.arrange(mono_1_2, cp2_1_2, mono_1_3, cp2_1_3, mono_2_3, cp2_2_3, ncol=2)
+dev.off()
+
+##############################################################
+################ ggPlot EXTRA FALCIPARUM PCs #################
+##############################################################
+
+## Identify clusters using K-means
+pf_grp <- find.clusters(pf_cam_gl, n.pca = 3, max.n.clust = 10, choose.n.clust = FALSE, criterion = "diffNgroup")
+  # using n.pca = 3 because these three PCs describe most of the variance
+pf_dapc <- dapc(pf_cam_gl, pf_grp$grp, n.pca = 3, n.da = 20)
+
+## Make plots of the extra PCs for Pf
+pf_1_2 <- ggcolor(pf_cam_pca, "P. falciparum", 700, pf_dapc$grp, 1, 2)
+pf_1_3 <- ggcolor(pf_cam_pca, "P. falciparum", 700, pf_dapc$grp, 1, 3)
+pf_2_3 <- ggcolor(pf_cam_pca, "P. falciparum", 700, pf_dapc$grp, 2, 3)
+eigens <- ggplot(as.data.frame(pf_cam_pca$eig), aes(x=1:length(pf_cam_pca$eig), y = pf_cam_pca$eig)) + 
+  geom_bar(stat = "identity") + 
+  params + 
+  ggtitle(bquote(atop("Principal Component Eigenvalues"))) +
+  labs(x = "", y = "Variance")
+
+svg("extra_pcs.svg", width = 8, height = 8.5)
+grid.arrange(eigens, pf_1_2, pf_1_3, pf_2_3, ncol = 2)
+grid.text("A", x = unit(0.03, "npc"), y = unit(0.93, "npc"), gp=gpar(fontsize=27))
+grid.text("B", x = unit(0.53, "npc"), y = unit(0.93, "npc"), gp=gpar(fontsize=27))
+grid.text("C", x = unit(0.03, "npc"), y = unit(0.43, "npc"), gp=gpar(fontsize=27))
+grid.text("D", x = unit(0.53, "npc"), y = unit(0.43, "npc"), gp=gpar(fontsize=27))
+dev.off()
+
+
+## Make plots of K-means -- P. vivax + P. falciparum only
+pv_grp <- find.clusters(pv_cam_gl, n.pca = 4, max.n.clust = 10, choose.n.clust = FALSE, criterion = "diffNgroup")
+pf_grp <- find.clusters(pf_cam_gl, n.pca = 3, max.n.clust = 10, choose.n.clust = FALSE, criterion = "diffNgroup")
+
+plot(pv_grp$Kstat, type = "l", main = expression(italic("P. vivax")), xlab = "Number of Clusters", ylab = "BIC", las = 1, xaxt = "n")
+axis(1, at = 1:10)
+points(pv_grp$Kstat, pch = 19)
+points(4, pv_grp$Kstat[4], pch = 19, col = "red", cex = 1.2)
+
+## plot it
+pf_grp <- find.clusters(pf_cam_gl, n.pca = 3, max.n.clust = 10, choose.n.clust = FALSE, criterion = "diffNgroup")
+dapc1 <- dapc(pf_cam_gl, pf_grp$grp, n.pca = 20, n.da = 40)
+scatter(dapc1)
+dapc1$grp # these are the grouping values
+
+## plot some things
+ggcolor(pf_cam_pca, "P. falciparum", 0, pf_cam_pops, 1, 2) # plot by province
+ggcolor(pf_cam_pca, "P. falciparum", 0, dapc1$grp, 2, 3) # plot by group
+
+
+## plot it a little better looking
+myCol <- c("darkblue","purple","green","orange")
+scatter(dapc1, posi.da="bottomright",  bg="white",
+        pch=17:22, cstar=0, col=myCol, scree.pca=TRUE,
+        posi.pca="bottomleft")
+scatter(dapc1, scree.da=FALSE, bg="white", pch=20,  cell=0, cstar=0, col=myCol, solid=.4,
+        cex=3,clab=0, leg=TRUE, txt.leg=paste("Cluster",1:4))
+
+
+svg("pf_pv_num_clust.svg", width = 5, height = 5)
+
+par(mfrow=c(1,2))
+
+plot(pf_grp$Kstat, type = "l", main = expression(italic("P. falciparum")), xlab = "Number of Clusters", ylab = "BIC", las = 1, xaxt = "n")
+axis(1, at = 1:10)
+points(pf_grp$Kstat, pch = 19)
+points(4, pf_grp$Kstat[4], pch = 19, col = "red", cex = 1.2)
+
+plot(pv_grp$Kstat, type = "l", main = expression(italic("P. vivax")), xlab = "Number of Clusters", ylab = "BIC", las = 1, xaxt = "n")
+axis(1, at = 1:10)
+points(pv_grp$Kstat, pch = 19)
+points(4, pv_grp$Kstat[4], pch = 19, col = "red", cex = 1.2)
+
+dev.off()
+
+
+## Make plots of K-means -- P. falciparum only
+svg("pf_num_clust.svg", width = 5, height = 5)
+plot(pf_grp$Kstat, type = "l", main = expression(italic("P. falciparum")), xlab = "Number of Clusters", ylab = "BIC", las = 1, xaxt = "n")
+axis(1, at = 1:10)
+points(pf_grp$Kstat, pch = 19)
+points(4, pf_grp$Kstat[4], pch = 19, col = "red", cex = 1.2)
+dev.off()
