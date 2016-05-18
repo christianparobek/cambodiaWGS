@@ -99,6 +99,8 @@ args = commandArgs(trailingOnly=TRUE)
 setwd("/proj/julianog/users/ChristianP/cambodiaWGS/")
 pv <- read.table(args[1], comment.char="#", header=FALSE)
 pf <- read.table(args[2], comment.char="#", header=FALSE)
+#pv <- read.table("../pv/variants/our_goods_UG.pass.vcf", comment.char="#", header=FALSE)
+#pf <- read.table("../pf/variants/our_goods_UG.pass.vcf", comment.char="#", header=FALSE)
 
 
 ###################################################
@@ -145,21 +147,21 @@ segments(1:length(pv_max), pv_max[pv_order],
          col="grey25", lwd=2)
 points(sort(pf_point_estimate),
        pch=19,
-       col="grey")
+       col="grey", cex = 0.65)
 points(sort(pv_point_estimate),
        pch=19,
-       col="grey25")
-axis(1, at=c(0,25,50,75))
-axis(2, at=c(0.2,0.6,1.0), las=2)
-segments(0, 0.95, 75, 0.95, lty=2, col="red", lwd=2)
+       col="grey25", cex = 0.65)
+axis(1, at=c(0,25,50,75), cex.axis = 0.8)
+axis(2, at=c(0.2,0.6,1.0), las=2, cex.axis = 0.8)
+segments(0, 0.95, 75, 0.95, lty=2, col="grey25", lwd=2)
 legend(35, 0.6,
        legend=c(expression(italic("P. vivax")), expression(italic("P. falciparum")), expression(paste(italic("F")["WS"] == "0.95"))), 
        pch=c(19,19,NA),
        lty=c(NA,NA,2),
-       col=c("grey25", "grey","red"),
+       col=c("grey25", "grey","black"),
        box.lwd=0,
        lwd=2,
-       cex=1.25)
-mtext("Isolates", side=1, line=2)
-mtext(expression(italic("F")["WS"]), side=2, line=2.5)
+       cex=0.9)
+mtext("Isolates", side=1, line=1.7, cex = 0.8, at = 38)
+mtext(expression(italic("F")["WS"]), side=2, line=2, cex = 0.8)
 dev.off()
