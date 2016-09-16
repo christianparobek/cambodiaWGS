@@ -11,7 +11,8 @@
 library(stringr)
 
 library(rehh)
-source("../rehh/mybifur.r") # a modded bifurcation.diagram, w/o x-axis
+#source("../rehh/mybifur.r") # a modded bifurcation.diagram, w/o x-axis
+source("mybifur.r") # a modded bifurcation.diagram, w/o x-axis
 
 
 
@@ -138,6 +139,7 @@ EHH0region <- abs(min(EHH0coords)) + abs(max(EHH0coords))
 ################################
 
 hap <- data2haplohh(hap_file="../rehh/14.hap", map_file="../rehh/14.inp")
+hap <- data2haplohh(hap_file="14.hap", map_file="14.inp")
 
 
 #################
@@ -154,7 +156,28 @@ par(mar = c(8,5,1,1))
 manhattan.plot(pv_mono_nsl_big, pv_mono_nsl_cutoff, pv_len)
 mtext("Chromosome", 1, line = 2.5, cex = 0.8)
 mtext(expression(italic("nS"[L])), 2, line = 2.5, cex = 0.8)
-arrows(19200000, 6.2, 20000000, 6.2, lwd = 3, length = 0.1, col = "#d95f02")
+arrows(22200000, 4.4, 21300000, 4.4, lwd = 1, length = 0.05, col = "#d95f02") # chr14 HP1
+text(x=21900000, y=4.6, labels = "HP1/SET10", cex = 0.7, col = "#d95f02")
+arrows(19350000, 6.2, 20150000, 6.2, lwd = 1, length = 0.05, col = "#d95f02") # chr14 AP2
+text(x=19650000, y=6.35, labels = "AP2", cex = 0.7, col = "#d95f02")
+arrows(18800000, 3.8, 18000000, 3.8, lwd = 1, length = 0.05, col = "#d95f02") # chr13 ABC
+text(x=18500000, y=4.0, labels = "ABC", cex = 0.7, col = "#d95f02")
+arrows(15900000, 3.6, 16700000, 3.6, lwd = 1, length = 0.05, col = "#d95f02") # chr12 MRP2
+text(x=16300000, y=3.8, labels = "MRP2", cex = 0.7, col = "#d95f02")
+arrows(15200000, 3.3, 16000000, 3.3, lwd = 1, length = 0.05, col = "#d95f02") # chr12 AP2
+text(x=15500000, y=3.5, labels = "AP2", cex = 0.7, col = "#d95f02")
+arrows(12200000, 3.6, 13000000, 3.6, lwd = 1, length = 0.05, col = "#d95f02") # chr11 AP2
+text(x=12500000, y=3.8, labels = "SET", cex = 0.7, col = "#d95f02")
+arrows(13350000, 3.6, 14150000, 3.6, lwd = 1, length = 0.05, col = "#d95f02") # chr11 AP2
+text(x=13650000, y=3.8, labels = "AP2", cex = 0.7, col = "#d95f02")
+arrows(10400000, 4.45, 11200000, 4.45, lwd = 1, length = 0.05, col = "#d95f02") # chr10 MDR1
+text(x=10800000, y=4.65, labels = "MDR1", cex = 0.7, col = "#d95f02")
+arrows(9800000, 3.55, 10600000, 3.55, lwd = 1, length = 0.05, col = "#d95f02") # other chr09 AP2
+text(x=10100000, y=3.75, labels = "AP2", cex = 0.7, col = "#d95f02")
+arrows(4200000, 4.25, 3400000, 4.25, lwd = 1, length = 0.05, col = "#d95f02") # chr04 SERA
+text(x=3800000, y=4.45, labels = "SERA", cex = 0.7, col = "#d95f02")
+arrows(000000, 4.05, 800000, 4.05, lwd = 1, length = 0.05, col = "#d95f02") # other chr02 MRP1
+text(x=400000, y=4.25, labels = "MRP1", cex = 0.7, col = "#d95f02")
 mtext("A", 2, line = 3.3, las = 2, cex = 1.6, padj = -4)
 
 
